@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Zap, LayoutDashboard, Globe, Layers, GraduationCap, Sparkles, Settings, LogOut, Vault, Rocket, RefreshCw, ShieldCheck } from "lucide-react";
+import { Zap, LayoutDashboard, Globe, Layers, GraduationCap, Sparkles, Settings, LogOut, Vault, Rocket, RefreshCw, ShieldCheck, Calculator } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 
 const navItems = [
     { name: "Wealth Dashboard", href: "/", icon: LayoutDashboard, color: "primary" },
+    { name: "Sync Calculator", href: "/calculator", icon: Calculator, color: "cyan" },
     { name: "Wealth Sync", href: "/sync", icon: Zap, color: "yellow", highlight: true },
     { name: "My Portfolios", href: "/bridges", icon: Layers, color: "purple" },
     { name: "Market Insights", href: "/traffic", icon: Globe, color: "blue" },
@@ -30,6 +31,8 @@ const getNavGlow = (color: string) => {
             return "hover:shadow-[0_0_20px_rgba(234,179,8,0.25)] hover:border-yellow-500/50";
         case "purple":
             return "hover:shadow-[0_0_20px_rgba(168,85,247,0.25)] hover:border-purple-500/50";
+        case "cyan":
+            return "hover:shadow-[0_0_20px_rgba(0,242,255,0.25)] hover:border-cyan-400/50";
         case "blue":
             return "hover:shadow-[0_0_20px_rgba(59,130,246,0.25)] hover:border-blue-500/50";
         case "orange":
@@ -45,6 +48,7 @@ const getIconColor = (color: string, isActive: boolean) => {
         case "primary": return "text-gray-500 group-hover:text-primary";
         case "yellow": return "text-gray-500 group-hover:text-yellow-400";
         case "purple": return "text-gray-500 group-hover:text-purple-400";
+        case "cyan": return "text-gray-500 group-hover:text-cyan-400";
         case "blue": return "text-gray-500 group-hover:text-blue-400";
         case "orange": return "text-gray-500 group-hover:text-orange-400";
         default: return "text-gray-500 group-hover:text-white";

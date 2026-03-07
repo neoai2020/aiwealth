@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Menu, X, LayoutDashboard, Zap, Layers, Globe, GraduationCap, Sparkles, Vault, Rocket, Settings } from "lucide-react";
+import { User, Menu, X, LayoutDashboard, Zap, Layers, Globe, GraduationCap, Sparkles, Vault, Rocket, Settings, Calculator } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
     { name: "Command Center", href: "/", icon: LayoutDashboard },
+    { name: "Sync Calculator", href: "/calculator", icon: Calculator },
     { name: "Sync Wizard", href: "/sync", icon: Zap, highlight: true },
     { name: "My Bridges", href: "/bridges", icon: Layers },
     { name: "Traffic Hub", href: "/traffic", icon: Globe },
