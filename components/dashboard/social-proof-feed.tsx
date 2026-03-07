@@ -117,13 +117,17 @@ function ProofCard({ event }: { event: ProofEvent }) {
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, x: -40, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 40, scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`flex items-center gap-3 p-3.5 rounded-xl bg-black/40 border ${config.border} hover:bg-white/[0.04] transition-colors duration-300 cursor-default`}
+      layout="position"
+      initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+      animate={{ opacity: 1, height: "auto", marginBottom: 8 }}
+      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      style={{ overflow: "hidden" }}
+      className="will-change-auto"
     >
+      <div
+        className={`flex items-center gap-3 p-3.5 rounded-xl bg-black/40 border ${config.border} hover:bg-white/[0.04] transition-colors duration-300 cursor-default`}
+      >
       <div className={`w-10 h-10 rounded-full ${config.bg} border ${config.border} flex items-center justify-center shrink-0`}>
         <span className={`text-sm font-bold ${config.color}`}>{initials}</span>
       </div>
@@ -142,6 +146,7 @@ function ProofCard({ event }: { event: ProofEvent }) {
 
       <div className={`shrink-0 w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}>
         <Icon className={`w-4 h-4 ${config.color}`} />
+      </div>
       </div>
     </motion.div>
   );
@@ -226,9 +231,9 @@ export function SocialProofFeed() {
         </div>
       </div>
 
-      <GlassPanel intensity="low" className="p-4 border-white/5">
-        <div className="space-y-2">
-          <AnimatePresence mode="popLayout" initial={false}>
+      <GlassPanel intensity="low" className="p-4 border-white/5 overflow-hidden">
+        <div>
+          <AnimatePresence initial={false}>
             {events.map((event) => (
               <ProofCard key={event.id} event={event} />
             ))}
