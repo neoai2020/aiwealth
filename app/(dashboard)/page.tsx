@@ -16,11 +16,11 @@ export default function Home() {
 
         <FounderTransmission />
 
+        <SocialProofFeed />
+
         <EarningsDashboard />
 
         <ProgressTracker />
-
-        <SocialProofFeed />
       </div>
     </div>
   );

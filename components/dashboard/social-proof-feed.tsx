@@ -180,7 +180,7 @@ export function SocialProofFeed() {
     let timeout: NodeJS.Timeout;
 
     const schedule = () => {
-      const delay = Math.random() * 6000 + 4000;
+      const delay = Math.random() * 2000 + 1500;
       timeout = setTimeout(() => {
         addEvent();
         schedule();
