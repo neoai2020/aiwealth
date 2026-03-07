@@ -12,7 +12,7 @@ const navItems = [
     { name: "Sync Calculator", href: "/calculator", icon: Calculator, color: "cyan" },
     { name: "Wealth Sync", href: "/sync", icon: Zap, color: "yellow", highlight: true },
     { name: "My Synced Pages", href: "/bridges", icon: Layers, color: "purple" },
-    { name: "Market Insights", href: "/traffic", icon: Globe, color: "blue" },
+    { name: "Traffic Hub", href: "/traffic", icon: Globe, color: "blue" },
     { name: "Expert Academy", href: "/training", icon: GraduationCap, color: "orange" },
 ];
 
