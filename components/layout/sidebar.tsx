@@ -13,7 +13,7 @@ const navItems = [
     { name: "Wealth Sync", href: "/sync", icon: Zap, color: "yellow", highlight: true },
     { name: "My Synced Pages", href: "/bridges", icon: Layers, color: "purple" },
     { name: "Traffic Hub", href: "/traffic", icon: Globe, color: "blue" },
-    { name: "Expert Academy", href: "/training", icon: GraduationCap, color: "orange" },
+    { name: "Training", href: "/training", icon: GraduationCap, color: "orange" },
 ];
 
 const premiumItems = [
