@@ -66,10 +66,10 @@ export function AnalyticsContent({ bridgeId }: AnalyticsContentProps) {
 
     return (
         <div className="space-y-8 pb-20">
-            <ContextualDocs title="Understanding Your Analytics" variant="info">
-                <p>This page shows performance data for your synced asset from the real-time database.</p>
+            <ContextualDocs title="Understanding Your Page Analytics" variant="info">
+                <p>This page shows performance data for your synced product page from the real-time database.</p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li><strong>Visitors:</strong> Total unique clicks tracked on your bridge link</li>
+                    <li><strong>Visitors:</strong> Total unique clicks tracked on your synced page link</li>
                     <li><strong>Earnings:</strong> Total confirmed commissions</li>
                 </ul>
             </ContextualDocs>
@@ -82,9 +82,9 @@ export function AnalyticsContent({ bridgeId }: AnalyticsContentProps) {
                     </NeonButton>
                 </Link>
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-white">Bridge Analytics</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white">Product Page Analytics</h1>
                     <p className="text-gray-400 text-sm">
-                        {loading ? "Loading..." : data?.title || `Asset ID: #${bridgeId.slice(0, 8)}`}
+                        {loading ? "Loading..." : data?.title || `Page ID: #${bridgeId.slice(0, 8)}`}
                     </p>
                 </div>
             </div>
@@ -164,7 +164,7 @@ export function AnalyticsContent({ bridgeId }: AnalyticsContentProps) {
             {/* Back Button */}
             <Link href="/bridges">
                 <NeonButton variant="ghost" className="w-full md:w-auto">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Bridges
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Synced Pages
                 </NeonButton>
             </Link>
         </div>

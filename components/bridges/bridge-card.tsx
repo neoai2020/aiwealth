@@ -160,7 +160,7 @@ export function BridgeCard({ id, title, url, status, traffic, earnings, niche }:
         <Link href={`/analytics?id=${id}`} className="flex-1">
           <NeonButton
             variant="ghost"
-            className="w-full py-0 h-10 text-xs tracking-wider border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/40 hover:shadow-[0_0_15px_rgba(0,242,255,0.15)]"
+            className="w-full py-0 h-10 text-xs tracking-wider border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/40"
           >
             <LineChart className="w-3.5 h-3.5 mr-2" /> Analytics
           </NeonButton>
