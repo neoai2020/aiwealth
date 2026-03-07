@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SyncWizard } from "@/components/sync/sync-wizard";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,15 +46,6 @@ const STEPS = [
 
 export default function SyncPage() {
   const [instructionsOpen, setInstructionsOpen] = useState(true);
-
-  useEffect(() => {
-    const hasVisited = localStorage.getItem("sync_visited");
-    if (hasVisited) {
-      setInstructionsOpen(false);
-    } else {
-      localStorage.setItem("sync_visited", "true");
-    }
-  }, []);
 
   return (
     <div className="flex flex-col items-center justify-start py-10 md:py-16">
