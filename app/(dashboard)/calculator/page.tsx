@@ -368,21 +368,15 @@ export default function SyncCalculatorPage() {
                       Recommended Starting Strategy
                     </h3>
                     <p className="text-gray-300 leading-relaxed">
-                      Based on current market conditions, we recommend starting
-                      with{" "}
+                      Based on current market conditions, we recommend targeting{" "}
                       <span className="text-primary font-bold">
-                        $400–$500/month
+                        ${Math.ceil(parsedTarget / 30).toLocaleString("en-US")}/day
                       </span>{" "}
-                      as your initial target and scaling from there. To reach
-                      your full{" "}
+                      to reach your{" "}
                       <span className="text-white font-bold">
-                        $
-                        {parseInt(
-                          incomeTarget.replace(/[^0-9]/g, "")
-                        ).toLocaleString("en-US")}
-                        /month
+                        ${parsedTarget.toLocaleString("en-US")}/month
                       </span>{" "}
-                      goal, follow the daily activity plan below.
+                      goal. Follow the daily activity plan below to get started.
                     </p>
                   </div>
                 </div>
