@@ -11,7 +11,7 @@ const navItems = [
     { name: "Command Center", href: "/", icon: LayoutDashboard },
     { name: "Sync Calculator", href: "/calculator", icon: Calculator },
     { name: "Sync Wizard", href: "/sync", icon: Zap, highlight: true },
-    { name: "My Bridges", href: "/bridges", icon: Layers },
+    { name: "My Synced Pages", href: "/bridges", icon: Layers },
     { name: "Traffic Hub", href: "/traffic", icon: Globe },
     { name: "Training", href: "/training", icon: GraduationCap },
 ];
