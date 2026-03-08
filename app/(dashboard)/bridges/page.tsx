@@ -3,7 +3,7 @@
 import { BridgeCard } from "@/components/bridges/bridge-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { Plus, Loader2, Info, Trash2, Zap } from "lucide-react";
+import { Plus, Loader2, Info, Trash2, Zap, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -87,6 +87,13 @@ export default function BridgesPage() {
               you can do:
             </p>
             <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <ExternalLink className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span>
+                  <span className="text-white font-medium">Check Synced Page</span> —
+                  Open and view your live synced product page
+                </span>
+              </div>
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span>

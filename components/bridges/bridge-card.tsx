@@ -163,7 +163,7 @@ export function BridgeCard({ id, title, url, status, traffic, earnings, niche, o
           className="flex-1 h-10 flex items-center justify-center gap-2 text-gray-400 hover:text-white bg-white/5 rounded-xl hover:bg-white/10 transition-all duration-300 border border-white/5 text-xs font-bold uppercase tracking-wider"
         >
           <ExternalLink className="w-3.5 h-3.5" />
-          View Page
+          Check Synced Page
         </Link>
 
         <button
