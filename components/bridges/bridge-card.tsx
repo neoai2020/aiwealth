@@ -1,8 +1,7 @@
 "use client";
 
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { NeonButton } from "@/components/ui/neon-button";
-import { ExternalLink, LineChart, Globe } from "lucide-react";
+import { ExternalLink, Globe, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -14,6 +13,7 @@ interface BridgeCardProps {
   traffic: string;
   earnings: string;
   niche?: string;
+  onDelete?: (id: string) => void;
 }
 
 const NICHE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
@@ -42,7 +42,7 @@ function shortenUrl(url: string): string {
   }
 }
 
-export function BridgeCard({ id, title, url, status, traffic, earnings, niche }: BridgeCardProps) {
+export function BridgeCard({ id, title, url, status, traffic, earnings, niche, onDelete }: BridgeCardProps) {
   const getStatusColor = (s: string) => {
     switch (s) {
       case "live": return "text-green-500 bg-green-500/10 border-green-500/20";
@@ -157,22 +157,22 @@ export function BridgeCard({ id, title, url, status, traffic, earnings, niche }:
 
       {/* Actions */}
       <div className="p-5 pt-0 flex gap-3">
-        <Link href={`/analytics?id=${id}`} className="flex-1">
-          <NeonButton
-            variant="ghost"
-            className="w-full py-0 h-10 text-xs tracking-wider border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/40"
-          >
-            <LineChart className="w-3.5 h-3.5 mr-2" /> Analytics
-          </NeonButton>
-        </Link>
-
         <Link
           href={`/review/${id}`}
           target="_blank"
-          className="h-10 w-10 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-xl hover:bg-orange-500/10 hover:border-orange-500/30 hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] transition-all duration-300 border border-white/5"
+          className="flex-1 h-10 flex items-center justify-center gap-2 text-gray-400 hover:text-white bg-white/5 rounded-xl hover:bg-white/10 transition-all duration-300 border border-white/5 text-xs font-bold uppercase tracking-wider"
         >
-          <ExternalLink className="w-4 h-4" />
+          <ExternalLink className="w-3.5 h-3.5" />
+          View Page
         </Link>
+
+        <button
+          onClick={() => onDelete?.(id)}
+          className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-red-400 bg-white/5 rounded-xl hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-300 border border-white/5 shrink-0"
+          title="Delete synced page"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Top line decoration */}

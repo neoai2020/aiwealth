@@ -3,7 +3,7 @@
 import { BridgeCard } from "@/components/bridges/bridge-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { Plus, Loader2, Info, BarChart3, Zap } from "lucide-react";
+import { Plus, Loader2, Info, Trash2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -55,6 +55,21 @@ export default function BridgesPage() {
     fetchBridges();
   }, [user]);
 
+  async function handleDelete(id: string) {
+    if (!confirm("Are you sure you want to delete this synced page?")) return;
+
+    try {
+      const { error } = await supabase.from("bridges").delete().eq("id", id);
+      if (error) {
+        console.error("Error deleting bridge:", error);
+        return;
+      }
+      setBridges((prev) => prev.filter((b) => b.id !== id));
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+
   return (
     <div className="space-y-8 pb-20 font-(family-name:--font-display)">
       {/* Info Banner */}
@@ -73,17 +88,17 @@ export default function BridgesPage() {
             </p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-sm text-gray-400">
-                <BarChart3 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                <span>
-                  <span className="text-white font-medium">Analytics</span> —
-                  Click to see detailed traffic and conversion data
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span>
                   <span className="text-white font-medium">New Product</span> —
                   Use the button above to sync a new product
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Trash2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                <span>
+                  <span className="text-white font-medium">Delete</span> —
+                  Remove a synced page you no longer need
                 </span>
               </div>
             </div>
@@ -149,6 +164,7 @@ export default function BridgesPage() {
                 traffic={bridge.traffic}
                 earnings={bridge.earnings}
                 niche={bridge.niche}
+                onDelete={handleDelete}
               />
             </motion.div>
           ))}
