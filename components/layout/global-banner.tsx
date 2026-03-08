@@ -43,7 +43,7 @@ export function GlobalBanner() {
                         The image shows a tall banner, so placing button below text is fine.
                     */}
                     <div className="pt-2">
-                        <Link href="https://www.skool.com/hustlegames/about?ref=5569e92387434b31bedbebb4c08d4a02" className="inline-block" target="_blank" rel="noopener noreferrer">
+                        <Link href="https://jvz5.com/c/3514391/415009?tid=pa" className="inline-block" target="_blank" rel="noopener noreferrer">
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
