@@ -2,11 +2,9 @@
 
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Video } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 export function FounderTransmission() {
-    const [isPlaying, setIsPlaying] = useState(false);
-
     return (
         <section>
             <div className="flex items-center gap-3 mb-5">
