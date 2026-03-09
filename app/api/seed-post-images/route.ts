@@ -224,33 +224,34 @@ function buildMarketingPrompt(niche: string, subject: string): string {
   ].join(". ");
 }
 
-async function generateOpenAIImage(prompt: string): Promise<Buffer | null> {
+async function generateRapidApiImage(prompt: string): Promise<Buffer | null> {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) return null;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch("https://api.openai.com/v1/images/generations", {
+    const body = new URLSearchParams({
+      prompt,
+      aspect_ratio: "1:1",
+      resolution: "1K",
+      model: process.env.RAPIDAPI_NANO_MODEL || "google/nano-banana-2",
+    });
+
+    const res = await fetch("https://google-nano-banana4.p.rapidapi.com/index.php", {
       method: "POST",
       signal: controller.signal,
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": process.env.RAPIDAPI_HOST || "google-nano-banana4.p.rapidapi.com",
       },
-      body: JSON.stringify({
-        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-        prompt,
-        size: "1024x1024",
-        quality: "high",
-        output_format: "jpeg",
-        output_compression: 90,
-      }),
+      body: body.toString(),
     });
     clearTimeout(timeout);
     if (!res.ok) return null;
     const data = await res.json();
-    const b64 = data?.data?.[0]?.b64_json;
+    const b64 = data?.image_base64 || data?.data?.[0]?.b64_json;
     return b64 ? Buffer.from(b64, "base64") : null;
   } catch {
     return null;
@@ -330,9 +331,9 @@ export async function POST(request: NextRequest) {
     const fillMissing = Boolean(body.fill_missing);
     const overwriteExisting = Boolean(body.overwrite_existing);
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.RAPIDAPI_KEY) {
       return NextResponse.json(
-        { success: false, error: "OPENAI_API_KEY is required for image generation" },
+        { success: false, error: "RAPIDAPI_KEY is required for image generation" },
         { status: 500 }
       );
     }
@@ -379,7 +380,7 @@ export async function POST(request: NextRequest) {
 
         const subject = subjects[i];
         const prompt = buildMarketingPrompt(niche, subject);
-        const imageBuffer = await generateOpenAIImage(prompt);
+        const imageBuffer = await generateRapidApiImage(prompt);
         if (!imageBuffer) {
           failed++;
           continue;
