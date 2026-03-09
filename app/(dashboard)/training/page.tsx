@@ -35,6 +35,12 @@ const trainingVideos = [
         description: "Learn how to use the Accelerator — 50 done-for-you landing pages across 5 niches to fast-track your earnings.",
         vimeoId: "1171736991",
     },
+    {
+        id: "6",
+        title: "Premium Feature 2 : Recurring Wealth Streams",
+        description: "Discover how to leverage top recurring income products that pay you every month for every customer you refer.",
+        vimeoId: "1171738844",
+    },
 ];
 
 export default function TrainingPage() {

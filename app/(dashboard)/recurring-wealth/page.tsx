@@ -27,6 +27,7 @@ import {
   Users,
   CreditCard,
   TrendingDown,
+  PlayCircle,
 } from "lucide-react";
 
 /* ─── Niche Palette ─── */
@@ -410,6 +411,27 @@ export default function RecurringWealthPage() {
         <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
           These products pay you <span className="text-white font-semibold">every month</span> for every customer you refer. Real Digistore24 products with recurring commissions.
         </p>
+      </motion.div>
+
+      {/* How to Use Video */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+        <GlassPanel intensity="low" className="overflow-hidden border-white/5">
+          <div className="p-5 pb-3 flex items-center gap-2">
+            <PlayCircle className="w-5 h-5 text-amber-400" />
+            <h2 className="text-lg font-bold text-white">How to Use Recurring Wealth Streams</h2>
+          </div>
+          <div className="px-5 pb-5">
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black/80">
+              <iframe
+                src="https://player.vimeo.com/video/1171738844?autoplay=0&title=0&byline=0&portrait=0"
+                title="How to Use Recurring Wealth Streams"
+                className="absolute inset-0 w-full h-full"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* Product List */}
