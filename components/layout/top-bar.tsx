@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Menu, X, LayoutDashboard, Zap, Layers, Globe, GraduationCap, Sparkles, Vault, Rocket, Settings, Calculator } from "lucide-react";
+import { User, Menu, X, LayoutDashboard, Zap, Layers, Globe, GraduationCap, Sparkles, Settings, Calculator, RefreshCw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,9 +17,10 @@ const navItems = [
 ];
 
 const premiumItems = [
-    { name: "DFY Vault", href: "/upgrade/dfy-vault", icon: Vault },
-    { name: "Instant Income", href: "/upgrade/instant-income", icon: Sparkles },
-    { name: "Automated Income", href: "/upgrade/automated-profits", icon: Rocket },
+    { name: "Accelerator", href: "/accelerator", icon: Zap },
+    { name: "Recurring Wealth Streams", href: "/recurring-wealth", icon: RefreshCw },
+    { name: "Social Payouts", href: "/social-payouts", icon: Globe },
+    { name: "Wealth Protector", href: "/protector", icon: ShieldCheck },
 ];
 
 export function TopBar() {
