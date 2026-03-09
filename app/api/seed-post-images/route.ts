@@ -276,9 +276,9 @@ async function tryRapidApi(prompt: string, apiKey: string): Promise<Buffer | nul
 async function tryPollinations(prompt: string): Promise<Buffer | null> {
   try {
     const seed = Math.floor(Math.random() * 999999);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000);
+    const timeout = setTimeout(() => controller.abort(), 45000);
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
@@ -425,30 +425,31 @@ export async function POST(request: NextRequest) {
             (_, offset) => startIndex + offset
           );
 
-      for (const i of candidateIndexes) {
-        const nicheIdx = NICHE_LIST.indexOf(niche);
-        const postId = nicheIdx * 50 + i + 1;
-
+      const toProcess = candidateIndexes.filter((i) => {
         if (!fillMissing && !overwriteExisting && existingIndexes.has(i)) {
           skipped++;
-          continue;
+          return false;
         }
+        return true;
+      });
 
-        const subject = subjects[i];
-        const prompt = buildMarketingPrompt(niche, subject);
-        const imageBuffer = await generateImage(prompt);
-        if (!imageBuffer) {
-          failed++;
-          continue;
+      const CONCURRENCY = 3;
+      for (let c = 0; c < toProcess.length; c += CONCURRENCY) {
+        const chunk = toProcess.slice(c, c + CONCURRENCY);
+        const results_chunk = await Promise.allSettled(
+          chunk.map(async (i) => {
+            const subject = subjects[i];
+            const prompt = buildMarketingPrompt(niche, subject);
+            const imageBuffer = await generateImage(prompt);
+            if (!imageBuffer) return false;
+            const savedUrl = await persistImage(supabase, niche, i, imageBuffer);
+            return !!savedUrl;
+          })
+        );
+        for (const r of results_chunk) {
+          if (r.status === "fulfilled" && r.value) generated++;
+          else failed++;
         }
-
-        const savedAltUrl = await persistImage(supabase, niche, i, imageBuffer);
-        if (!savedAltUrl) {
-          failed++;
-          continue;
-        }
-
-        generated++;
       }
 
       results.push({ niche, generated, failed, skipped });
