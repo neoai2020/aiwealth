@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { ExternalLink, Globe, Trash2 } from "lucide-react";
+import { ExternalLink, Globe, Trash2, Pencil, X, Loader2, Check, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BridgeCardProps {
   id: string;
@@ -14,6 +17,7 @@ interface BridgeCardProps {
   earnings: string;
   niche?: string;
   onDelete?: (id: string) => void;
+  onUrlUpdated?: (id: string, newUrl: string) => void;
 }
 
 const NICHE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
@@ -42,7 +46,35 @@ function shortenUrl(url: string): string {
   }
 }
 
-export function BridgeCard({ id, title, url, status, traffic, earnings, niche, onDelete }: BridgeCardProps) {
+export function BridgeCard({ id, title, url, status, traffic, earnings, niche, onDelete, onUrlUpdated }: BridgeCardProps) {
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editUrl, setEditUrl] = useState(url);
+  const [saving, setSaving] = useState(false);
+  const [displayUrl, setDisplayUrl] = useState(url);
+
+  const isRecurring = earnings?.toLowerCase().includes("recurring");
+
+  const handleSaveUrl = async () => {
+    if (!editUrl.trim() || saving) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("bridges")
+        .update({ affiliate_url: editUrl.trim() })
+        .eq("id", id);
+      if (!error) {
+        setDisplayUrl(editUrl.trim());
+        onUrlUpdated?.(id, editUrl.trim());
+        setEditModalOpen(false);
+      } else {
+        console.error("Error updating link:", error);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
   const getStatusColor = (s: string) => {
     switch (s) {
       case "live": return "text-green-500 bg-green-500/10 border-green-500/20";
@@ -94,9 +126,9 @@ export function BridgeCard({ id, title, url, status, traffic, earnings, niche, o
               <Globe className="w-3 h-3 text-gray-500 shrink-0" />
               <span
                 className="text-xs text-gray-500 truncate font-mono"
-                title={url}
+                title={displayUrl}
               >
-                {shortenUrl(url)}
+                {shortenUrl(displayUrl)}
               </span>
             </div>
           </div>
@@ -122,16 +154,24 @@ export function BridgeCard({ id, title, url, status, traffic, earnings, niche, o
           </div>
         </div>
 
-        {/* Niche Badge */}
-        <div
-          className={cn(
-            "inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-            nicheColor.text,
-            nicheColor.bg,
-            nicheColor.border
+        {/* Niche Badge + Recurring Label */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div
+            className={cn(
+              "inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+              nicheColor.text,
+              nicheColor.bg,
+              nicheColor.border
+            )}
+          >
+            {nicheLabel}
+          </div>
+          {isRecurring && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-amber-400/20 bg-amber-400/10 text-amber-400">
+              <RefreshCw className="w-3 h-3" />
+              Recurring
+            </div>
           )}
-        >
-          {nicheLabel}
         </div>
       </div>
 
@@ -156,27 +196,117 @@ export function BridgeCard({ id, title, url, status, traffic, earnings, niche, o
       </div>
 
       {/* Actions */}
-      <div className="p-5 pt-0 flex gap-3">
-        <Link
-          href={`/review/${id}`}
-          target="_blank"
-          className="flex-1 h-10 flex items-center justify-center gap-2 text-gray-400 hover:text-white bg-white/5 rounded-xl hover:bg-white/10 transition-all duration-300 border border-white/5 text-xs font-bold uppercase tracking-wider"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Check Synced Page
-        </Link>
+      <div className="p-5 pt-0 flex flex-col gap-2">
+        <div className="flex gap-3">
+          <Link
+            href={`/review/${id}`}
+            target="_blank"
+            className="flex-1 h-10 flex items-center justify-center gap-2 text-gray-400 hover:text-white bg-white/5 rounded-xl hover:bg-white/10 transition-all duration-300 border border-white/5 text-xs font-bold uppercase tracking-wider"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Check Synced Page
+          </Link>
+
+          <button
+            onClick={() => onDelete?.(id)}
+            className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-red-400 bg-white/5 rounded-xl hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-300 border border-white/5 shrink-0"
+            title="Delete synced page"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
 
         <button
-          onClick={() => onDelete?.(id)}
-          className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-red-400 bg-white/5 rounded-xl hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-300 border border-white/5 shrink-0"
-          title="Delete synced page"
+          onClick={() => { setEditUrl(displayUrl); setEditModalOpen(true); }}
+          className="h-10 flex items-center justify-center gap-2 text-gray-400 hover:text-amber-400 bg-white/5 rounded-xl hover:bg-amber-500/10 hover:border-amber-500/30 transition-all duration-300 border border-white/5 text-xs font-bold uppercase tracking-wider"
         >
-          <Trash2 className="w-4 h-4" />
+          <Pencil className="w-3.5 h-3.5" />
+          Edit Promotional Link
         </button>
       </div>
 
       {/* Top line decoration */}
       <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-white/10 to-transparent group-hover:via-primary/50 transition-all duration-500" />
+
+      {/* Edit Promotional Link Modal */}
+      <AnimatePresence>
+        {editModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditModalOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-black/95 border border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-xl"
+            >
+              <button
+                onClick={() => setEditModalOpen(false)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-extrabold text-white mb-1">
+                    Edit Promotional Link
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    Update the affiliate link for <span className="text-white font-medium">{title}</span>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                    Promotional Link
+                  </label>
+                  <input
+                    type="text"
+                    value={editUrl}
+                    onChange={(e) => setEditUrl(e.target.value)}
+                    placeholder="https://www.digistore24.com/redir/..."
+                    className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/40 transition-colors"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && editUrl.trim()) handleSaveUrl();
+                    }}
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSaveUrl}
+                    disabled={!editUrl.trim() || saving}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider transition-all duration-300",
+                      editUrl.trim() && !saving
+                        ? "bg-linear-to-r from-primary to-cyan-400 text-black hover:shadow-[0_0_20px_rgba(0,242,255,0.2)]"
+                        : "bg-white/5 border border-white/10 text-gray-600 cursor-not-allowed"
+                    )}
+                  >
+                    {saving ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Check className="w-4 h-4" /> Save Changes</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setEditModalOpen(false)}
+                    className="px-6 py-3.5 rounded-2xl border border-white/10 text-white text-sm font-bold hover:bg-white/5 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </GlassPanel>
   );
 }

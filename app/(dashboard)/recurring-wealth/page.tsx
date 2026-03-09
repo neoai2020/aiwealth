@@ -294,10 +294,24 @@ function SyncPopup({
     if (!user || !promoLink.trim()) return;
     setSyncing(true);
     try {
+      let imageUrl: string | null = null;
+      try {
+        const res = await fetch("/api/analyze-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: product.productUrl }),
+        });
+        const result = await res.json();
+        if (result.success && result.data?.image) {
+          imageUrl = result.data.image;
+        }
+      } catch {}
+
       const { error } = await supabase.from("bridges").insert({
         user_id: user.id,
         title: product.name,
         affiliate_url: promoLink.trim(),
+        image_url: imageUrl,
         status: "live",
         traffic: "0",
         earnings: `${product.commission} recurring`,

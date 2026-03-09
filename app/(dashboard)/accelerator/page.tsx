@@ -311,10 +311,12 @@ export default function AcceleratorPage() {
     if (!user || syncedIds.has(product.id) || syncingId === product.id) return;
     setSyncingId(product.id);
     try {
+      const imageUrl = getImageUrl(product, 1);
       const { error } = await supabase.from("bridges").insert({
         user_id: user.id,
         title: product.name,
         affiliate_url: "",
+        image_url: imageUrl,
         status: "live",
         traffic: String(Math.floor(product.popularity * 12)),
         earnings: `$${product.estMin} – $${product.estMax}`,

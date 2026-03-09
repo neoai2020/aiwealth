@@ -172,6 +172,13 @@ export default function BridgesPage() {
                 earnings={bridge.earnings}
                 niche={bridge.niche}
                 onDelete={handleDelete}
+                onUrlUpdated={(id, newUrl) => {
+                  setBridges((prev) =>
+                    prev.map((b) =>
+                      b.id === id ? { ...b, affiliate_url: newUrl } : b
+                    )
+                  );
+                }}
               />
             </motion.div>
           ))}
