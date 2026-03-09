@@ -10,15 +10,23 @@ import {
   Copy,
   Check,
   Download,
-  Eye,
-  Facebook,
-  Twitter,
-  Instagram,
   Image as ImageIcon,
   Loader2,
   Link2,
   CheckCircle,
   Sparkles,
+  Search,
+  X,
+  Heart,
+  Brain,
+  DollarSign,
+  Laptop,
+  Scale,
+  Bitcoin,
+  Star,
+  Users,
+  Clock,
+  Flame,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -33,7 +41,6 @@ interface NichePost {
   id: number;
   niche: string;
   text: string;
-  platform: "facebook" | "twitter" | "instagram";
 }
 
 /* ─── Niches ─── */
@@ -50,46 +57,163 @@ const NICHE_LIST = [
   "Spirituality",
 ] as const;
 
-const NICHE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
-  "Health & Fitness": { text: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-  "Personal Finance": { text: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20" },
-  "Self-Improvement": { text: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20" },
-  "Online Business": { text: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
-  "Weight Loss": { text: "text-rose-400", bg: "bg-rose-400/10", border: "border-rose-400/20" },
-  "Crypto Trading": { text: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
-  "Manifestation": { text: "text-violet-400", bg: "bg-violet-400/10", border: "border-violet-400/20" },
-  "Relationship Coaching": { text: "text-pink-400", bg: "bg-pink-400/10", border: "border-pink-400/20" },
-  "Productivity": { text: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20" },
-  "Spirituality": { text: "text-indigo-400", bg: "bg-indigo-400/10", border: "border-indigo-400/20" },
+const NICHE_ICONS: Record<string, React.ElementType> = {
+  "Health & Fitness": Heart,
+  "Personal Finance": DollarSign,
+  "Self-Improvement": Brain,
+  "Online Business": Laptop,
+  "Weight Loss": Scale,
+  "Crypto Trading": Bitcoin,
+  "Manifestation": Star,
+  "Relationship Coaching": Users,
+  "Productivity": Clock,
+  "Spirituality": Flame,
 };
-const DEFAULT_NC = { text: "text-gray-400", bg: "bg-gray-400/10", border: "border-gray-400/20" };
 
-/* ─── Platform Config ─── */
-const platformConfig = {
-  facebook: { label: "FB", color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20", icon: Facebook },
-  twitter: { label: "TW", color: "text-sky-400", bg: "bg-sky-400/10", border: "border-sky-400/20", icon: Twitter },
-  instagram: { label: "IG", color: "text-pink-400", bg: "bg-pink-400/10", border: "border-pink-400/20", icon: Instagram },
+const NICHE_COLORS: Record<string, { text: string; bg: string; border: string; accent: string }> = {
+  "Health & Fitness": { text: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20", accent: "from-emerald-500/20 to-emerald-400/5" },
+  "Personal Finance": { text: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20", accent: "from-cyan-500/20 to-cyan-400/5" },
+  "Self-Improvement": { text: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20", accent: "from-purple-500/20 to-purple-400/5" },
+  "Online Business": { text: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20", accent: "from-amber-500/20 to-amber-400/5" },
+  "Weight Loss": { text: "text-rose-400", bg: "bg-rose-400/10", border: "border-rose-400/20", accent: "from-rose-500/20 to-rose-400/5" },
+  "Crypto Trading": { text: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20", accent: "from-orange-500/20 to-orange-400/5" },
+  "Manifestation": { text: "text-violet-400", bg: "bg-violet-400/10", border: "border-violet-400/20", accent: "from-violet-500/20 to-violet-400/5" },
+  "Relationship Coaching": { text: "text-pink-400", bg: "bg-pink-400/10", border: "border-pink-400/20", accent: "from-pink-500/20 to-pink-400/5" },
+  "Productivity": { text: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20", accent: "from-blue-500/20 to-blue-400/5" },
+  "Spirituality": { text: "text-indigo-400", bg: "bg-indigo-400/10", border: "border-indigo-400/20", accent: "from-indigo-500/20 to-indigo-400/5" },
 };
+const DEFAULT_NC = { text: "text-gray-400", bg: "bg-gray-400/10", border: "border-gray-400/20", accent: "from-gray-500/20 to-gray-400/5" };
 
 /* ─── Image Generation ─── */
-const IMAGE_STYLES = [
-  "modern minimalist flat design",
-  "vibrant gradient social media graphic",
-  "clean professional marketing banner",
-  "bold typography poster style",
-  "sleek dark themed promotional art",
-  "colorful abstract motivational design",
-  "neon glow futuristic style",
-  "warm lifestyle photography aesthetic",
-  "luxury premium brand aesthetic",
-  "energetic dynamic action style",
-];
+const NICHE_IMAGE_SUBJECTS: Record<string, string[]> = {
+  "Health & Fitness": [
+    "person doing yoga at sunrise, peaceful outdoor setting, healthy lifestyle",
+    "fresh colorful healthy meal bowl, avocado, greens, vibrant food photography",
+    "runners on a scenic trail, morning light, active lifestyle",
+    "gym workout equipment with natural light, motivational atmosphere",
+    "meditation in nature, calm water reflection, wellness concept",
+    "healthy smoothie with fresh fruits, bright kitchen setting",
+    "stretching exercise outdoors, park setting, golden hour",
+    "swimming in clear blue pool, fitness and health",
+    "group fitness class, energetic atmosphere, community workout",
+    "hiking mountain trail, adventure and health, beautiful landscape",
+  ],
+  "Personal Finance": [
+    "modern workspace with laptop showing growth charts, success concept",
+    "golden coins and growing plant, wealth growth metaphor",
+    "luxury lifestyle, modern apartment view, financial freedom",
+    "piggy bank with golden coins, smart saving concept",
+    "financial planning desk with coffee, organized workspace",
+    "stock market graph trending upward, investment success",
+    "beautiful home exterior, real estate investment concept",
+    "passport with world map, travel freedom from financial independence",
+    "elegant wallet with credit cards, financial management",
+    "sunrise over city skyline, new financial beginnings",
+  ],
+  "Self-Improvement": [
+    "open journal with coffee on wooden desk, morning routine",
+    "person reading book in cozy setting, personal growth",
+    "mountain peak at sunrise, achievement and growth metaphor",
+    "organized minimalist desk, productivity and clarity",
+    "person standing on cliff edge overlooking vast landscape, perspective",
+    "bookshelf filled with books, knowledge and wisdom",
+    "zen garden with smooth stones, inner peace and balance",
+    "sunrise through forest trees, new beginnings and growth",
+    "motivational workspace with vision board, goal setting",
+    "peaceful morning coffee ritual, mindful living",
+  ],
+  "Online Business": [
+    "modern home office setup with multiple screens, entrepreneur lifestyle",
+    "laptop on beach, digital nomad freedom",
+    "creative workspace with plants, modern entrepreneur",
+    "coffee shop workspace, remote business lifestyle",
+    "ecommerce packages ready to ship, online business success",
+    "social media analytics on screen, digital marketing",
+    "team video call on laptop, remote business collaboration",
+    "modern coworking space, startup atmosphere",
+    "smartphone showing business notifications, mobile income",
+    "luxury travel while working on laptop, location independence",
+  ],
+  "Weight Loss": [
+    "healthy meal prep containers, colorful nutritious food",
+    "person jogging at sunrise, weight loss journey",
+    "fresh vegetables and fruits on cutting board, clean eating",
+    "before and after transformation concept, measuring tape",
+    "yoga mat with water bottle, healthy active lifestyle",
+    "kitchen scale with healthy ingredients, portion control",
+    "outdoor walking path in nature, daily exercise",
+    "refreshing fruit infused water, hydration and health",
+    "light healthy breakfast spread, morning nutrition",
+    "person stretching outdoors, active healthy lifestyle",
+  ],
+  "Crypto Trading": [
+    "futuristic trading dashboard with green charts, crypto success",
+    "bitcoin golden coin with bokeh lights, digital currency",
+    "modern trading setup with multiple monitors, professional trader",
+    "blockchain network visualization, technology concept",
+    "bull statue with golden background, bull market",
+    "digital wallet on smartphone, mobile crypto trading",
+    "candlestick chart trending up, profitable trading",
+    "futuristic city with digital overlay, crypto future",
+    "golden ethereum coin, altcoin investing",
+    "secure vault door, protecting crypto assets",
+  ],
+  "Manifestation": [
+    "golden sunrise over calm ocean, abundance and possibility",
+    "crystal clear water droplet, clarity and intention",
+    "beautiful galaxy and stars, universe and manifestation",
+    "butterfly emerging from cocoon, transformation metaphor",
+    "candle flame in peaceful dark setting, meditation and focus",
+    "rainbow after rain, hope and manifestation",
+    "lotus flower blooming on water, spiritual growth",
+    "golden light rays through clouds, divine abundance",
+    "journal with pen and crystals, manifestation ritual",
+    "peaceful garden with flowing water, harmony and alignment",
+  ],
+  "Relationship Coaching": [
+    "couple holding hands walking on beach at sunset, love",
+    "cozy coffee date, intimate conversation, warm atmosphere",
+    "two people laughing together outdoors, genuine connection",
+    "romantic dinner setup with candles, relationship goals",
+    "couple watching sunset from rooftop, partnership",
+    "flowers and love letter, romantic gesture",
+    "couple cooking together in modern kitchen, partnership",
+    "two friends laughing at outdoor cafe, meaningful connections",
+    "heart shaped lock, commitment and love",
+    "couple on adventure hike, shared experiences",
+  ],
+  "Productivity": [
+    "perfectly organized desk with planner and laptop, focus",
+    "hourglass with golden sand, time management concept",
+    "clean minimal workspace, distraction free environment",
+    "checklist with completed tasks, achievement feeling",
+    "sunrise alarm clock, morning productivity routine",
+    "modern calendar and planner system, organized life",
+    "focused person at standing desk, deep work",
+    "beautiful organized bookshelf, systematic approach",
+    "timer and notebook, pomodoro technique",
+    "clean email inbox on screen, digital organization",
+  ],
+  "Spirituality": [
+    "meditation silhouette at sunrise, inner peace",
+    "ancient temple with morning mist, spiritual journey",
+    "incense smoke swirling in sunlight, mindfulness",
+    "peaceful forest path, spiritual walking meditation",
+    "prayer beads on wooden surface, spiritual practice",
+    "calm lake reflection at dawn, mirror of the soul",
+    "sacred geometry patterns, universal connection",
+    "candles in dark peaceful room, contemplation",
+    "mountain monastery in clouds, spiritual retreat",
+    "hands in prayer position with soft light, devotion",
+  ],
+};
 
 function getImageUrl(niche: string, postId: number): string {
-  const style = IMAGE_STYLES[postId % IMAGE_STYLES.length];
-  const prompt = `${style}, ${niche}, social media marketing post, professional, clean layout, no text overlay, high quality`;
-  const seed = 6000 + postId;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=450&seed=${seed}&nologo=true`;
+  const subjects = NICHE_IMAGE_SUBJECTS[niche] || NICHE_IMAGE_SUBJECTS["Health & Fitness"];
+  const subject = subjects[postId % subjects.length];
+  const prompt = `${subject}, beautiful photography, no text, no words, no letters, no watermark, high quality, social media post`;
+  const seed = 7000 + postId;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&seed=${seed}&nologo=true`;
 }
 
 function LazyPostImage({ niche, postId }: { niche: string; postId: number }) {
@@ -103,7 +227,7 @@ function LazyPostImage({ niche, postId }: { niche: string; postId: number }) {
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); } },
-      { rootMargin: "200px" }
+      { rootMargin: "300px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -112,7 +236,7 @@ function LazyPostImage({ niche, postId }: { niche: string; postId: number }) {
   const src = isVisible ? getImageUrl(niche, postId) : undefined;
 
   return (
-    <div ref={ref} className="aspect-video bg-black/40 relative overflow-hidden rounded-t-xl">
+    <div ref={ref} className="aspect-square bg-black/40 relative overflow-hidden">
       {(!loaded || !isVisible) && !error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -136,6 +260,93 @@ function LazyPostImage({ niche, postId }: { niche: string; postId: number }) {
           onError={() => setError(true)}
         />
       )}
+    </div>
+  );
+}
+
+/* ─── Product Selector Modal ─── */
+function ProductSelectorModal({
+  syncedPages,
+  loading,
+  onSelect,
+  onClose,
+}: {
+  syncedPages: SyncedPage[];
+  loading: boolean;
+  onSelect: (page: SyncedPage) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  const filtered = syncedPages.filter((p) =>
+    p.title.toLowerCase().includes(search.toLowerCase()) ||
+    (p.niche || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-md bg-black/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl overflow-hidden">
+        <div className="p-5 border-b border-white/5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Select a Synced Product</h3>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by product name or niche..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/40 transition-colors"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-64 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-8 gap-2">
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+              <span className="text-xs text-gray-400">Loading products...</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-xs text-gray-500">{syncedPages.length === 0 ? "No synced products yet." : "No products match your search."}</p>
+              {syncedPages.length === 0 && <p className="text-[10px] text-gray-600 mt-1">Sync a product first from Recurring Wealth Streams or Profit Accelerator.</p>}
+            </div>
+          ) : (
+            filtered.map((page) => {
+              const pnc = NICHE_COLORS[page.niche || ""] || DEFAULT_NC;
+              return (
+                <button
+                  key={page.id}
+                  onClick={() => onSelect(page)}
+                  className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-white/5 transition-colors border-b border-white/[0.03] last:border-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-200 font-medium truncate">{page.title}</p>
+                    {page.affiliate_url && <p className="text-[10px] text-gray-600 truncate mt-0.5">{page.affiliate_url}</p>}
+                  </div>
+                  {page.niche && (
+                    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border shrink-0", pnc.text, pnc.bg, pnc.border)}>
+                      {page.niche}
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -671,14 +882,12 @@ const NICHE_POSTS: Record<string, string[]> = {
 function generateNichePosts(niche: string): NichePost[] {
   const texts = NICHE_POSTS[niche];
   if (!texts) return [];
-  const platforms: ("facebook" | "twitter" | "instagram")[] = ["facebook", "twitter", "instagram"];
   const nicheIdx = NICHE_LIST.indexOf(niche as typeof NICHE_LIST[number]);
   const baseId = nicheIdx * 50;
   return texts.map((text, i) => ({
     id: baseId + i + 1,
     niche,
     text,
-    platform: platforms[i % 3],
   }));
 }
 
@@ -691,12 +900,10 @@ export default function SocialPayoutsPage() {
   const [loadingPages, setLoadingPages] = useState(true);
 
   const [selectedNiche, setSelectedNiche] = useState<string>(NICHE_LIST[0]);
-  const [platformFilter, setPlatformFilter] = useState<string>("all");
 
-  const [linkSelectorOpen, setLinkSelectorOpen] = useState<number | null>(null);
+  const [productModalPostId, setProductModalPostId] = useState<number | null>(null);
   const [linkedProducts, setLinkedProducts] = useState<Record<number, SyncedPage>>({});
   const [copiedPostId, setCopiedPostId] = useState<number | null>(null);
-  const [expandedPost, setExpandedPost] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -719,14 +926,9 @@ export default function SocialPayoutsPage() {
 
   const posts = useMemo(() => generateNichePosts(selectedNiche), [selectedNiche]);
 
-  const filteredPosts = useMemo(() => {
-    if (platformFilter === "all") return posts;
-    return posts.filter((p) => p.platform === platformFilter);
-  }, [posts, platformFilter]);
-
   const handleLinkProduct = (postId: number, page: SyncedPage) => {
     setLinkedProducts((prev) => ({ ...prev, [postId]: page }));
-    setLinkSelectorOpen(null);
+    setProductModalPostId(null);
   };
 
   const handleCopyPost = (post: NichePost) => {
@@ -752,67 +954,54 @@ export default function SocialPayoutsPage() {
           Social Payouts
         </h1>
         <p className="text-gray-400 text-base max-w-2xl mx-auto">
-          50 proven-to-work social media posts for every niche. Pick your niche, add your affiliate link, then copy the post or download the image.
+          50 proven-to-work social media posts for every niche — ready for Facebook, Instagram, Twitter & more. Add your affiliate link, then copy the post or download the image.
         </p>
       </motion.div>
 
-      {/* Niche Tabs */}
-      <div className="overflow-x-auto pb-2">
-        <div className="flex gap-2 min-w-max">
+      {/* Niche Selector Grid */}
+      <div>
+        <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-3">Select a Niche</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
           {NICHE_LIST.map((niche) => {
             const c = NICHE_COLORS[niche] || DEFAULT_NC;
+            const Icon = NICHE_ICONS[niche] || Star;
             const isActive = selectedNiche === niche;
             return (
               <button
                 key={niche}
-                onClick={() => { setSelectedNiche(niche); setPlatformFilter("all"); setExpandedPost(null); }}
+                onClick={() => setSelectedNiche(niche)}
                 className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap",
+                  "relative flex flex-col items-center gap-2 px-3 py-4 rounded-xl border transition-all duration-200 text-center group",
                   isActive
-                    ? `${c.bg} ${c.border} ${c.text}`
-                    : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:text-gray-300"
+                    ? `${c.bg} ${c.border} ${c.text} shadow-lg`
+                    : "bg-white/[0.02] border-white/5 text-gray-500 hover:bg-white/5 hover:border-white/10 hover:text-gray-300"
                 )}
               >
-                {niche}
+                <Icon className={cn("w-5 h-5 transition-colors", isActive ? c.text : "text-gray-600 group-hover:text-gray-400")} />
+                <span className="text-[11px] font-bold uppercase tracking-wide leading-tight">{niche}</span>
+                {isActive && <div className={cn("absolute -bottom-px left-4 right-4 h-0.5 rounded-full", c.bg.replace("/10", ""))} />}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Selected Niche Header + Platform Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* Active Niche Header */}
+      <div className="flex items-center justify-between">
         <div>
           <h2 className={cn("text-xl font-bold", nc.text)}>{selectedNiche}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">{filteredPosts.length} posts ready to publish</p>
+          <p className="text-xs text-gray-500 mt-0.5">{posts.length} posts — works on all social platforms</p>
         </div>
-        <div className="flex gap-2">
-          {["all", "facebook", "twitter", "instagram"].map((pf) => (
-            <button
-              key={pf}
-              onClick={() => setPlatformFilter(pf)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all",
-                platformFilter === pf
-                  ? "bg-primary/10 border-primary/40 text-primary"
-                  : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:text-gray-300"
-              )}
-            >
-              {pf === "all" ? "All Platforms" : pf.charAt(0).toUpperCase() + pf.slice(1)}
-            </button>
-          ))}
-        </div>
+        <span className={cn("inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", nc.text, nc.bg, nc.border)}>
+          {posts.length} Posts
+        </span>
       </div>
 
       {/* Posts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPosts.map((post, index) => {
-          const pc = platformConfig[post.platform];
-          const PlatformIcon = pc.icon;
-          const isExpanded = expandedPost === post.id;
+        {posts.map((post, index) => {
           const isCopied = copiedPostId === post.id;
           const linked = linkedProducts[post.id];
-          const isSelectorOpen = linkSelectorOpen === post.id;
 
           return (
             <motion.div
@@ -823,19 +1012,19 @@ export default function SocialPayoutsPage() {
             >
               <GlassPanel
                 intensity="low"
-                className="p-0 border-white/5 hover:border-primary/20 transition-all duration-300 h-full flex flex-col"
+                className="p-0 border-white/5 hover:border-primary/20 transition-all duration-300 h-full flex flex-col overflow-hidden"
               >
                 {/* AI Image */}
                 <div className="relative">
                   <LazyPostImage niche={post.niche} postId={post.id} />
-                  <div className={cn("absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border backdrop-blur-sm", pc.bg, pc.color, pc.border)}>
-                    <PlatformIcon className="w-3 h-3" />{pc.label}
+                  <div className={cn("absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border backdrop-blur-sm", nc.text, nc.bg, nc.border)}>
+                    {post.niche}
                   </div>
                 </div>
 
                 {/* Post Content */}
                 <div className="p-4 flex-1 flex flex-col">
-                  <p className={cn("text-sm text-gray-300 leading-relaxed mb-4 flex-1", !isExpanded && "line-clamp-3")}>
+                  <p className="text-sm text-gray-300 leading-relaxed mb-4 flex-1">
                     {post.text}
                     {linked && linked.affiliate_url && (
                       <span className="block mt-2 text-primary text-xs font-medium truncate">
@@ -846,23 +1035,23 @@ export default function SocialPayoutsPage() {
 
                   {/* CTAs */}
                   <div className="space-y-2.5">
-                    {/* Row 1: Copy + Download Image + View */}
-                    <div className="flex items-center gap-2 flex-wrap">
+                    {/* Copy + Download Image */}
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => linked && handleCopyPost(post)}
                         disabled={!linked}
                         className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                          "flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition-all",
                           linked
-                            ? "bg-white/5 border-white/5 text-gray-400 hover:text-emerald-400 hover:bg-emerald-400/10 hover:border-emerald-400/20"
-                            : "bg-white/[0.02] border-white/5 text-gray-600 cursor-not-allowed opacity-40"
+                            ? "bg-white/5 border-white/10 text-gray-300 hover:text-emerald-400 hover:bg-emerald-400/10 hover:border-emerald-400/20"
+                            : "bg-white/[0.02] border-white/5 text-gray-700 cursor-not-allowed"
                         )}
-                        title={!linked ? "Add your synced product first" : "Copy post text with your link"}
+                        title={!linked ? "Add your synced product first" : "Copy post text with your affiliate link"}
                       >
                         {isCopied ? (
-                          <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied!</span></>
+                          <><Check className="w-3.5 h-3.5 text-emerald-400" /><span className="text-emerald-400">Copied!</span></>
                         ) : (
-                          <><Copy className="w-3 h-3" /> Copy</>
+                          <><Copy className="w-3.5 h-3.5" /> Copy</>
                         )}
                       </button>
 
@@ -872,92 +1061,38 @@ export default function SocialPayoutsPage() {
                         target={linked ? "_blank" : undefined}
                         rel="noopener noreferrer"
                         className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                          "flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition-all",
                           linked
-                            ? "bg-white/5 border-white/5 text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/20"
-                            : "bg-white/[0.02] border-white/5 text-gray-600 cursor-not-allowed opacity-40 pointer-events-none"
+                            ? "bg-white/5 border-white/10 text-gray-300 hover:text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/20"
+                            : "bg-white/[0.02] border-white/5 text-gray-700 cursor-not-allowed pointer-events-none"
                         )}
                         title={!linked ? "Add your synced product first" : "Download image"}
                         onClick={(e) => { if (!linked) e.preventDefault(); }}
                       >
-                        <Download className="w-3 h-3" /> Download Image
+                        <Download className="w-3.5 h-3.5" /> Image
                       </a>
-
-                      <button
-                        onClick={() => setExpandedPost(isExpanded ? null : post.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-all ml-auto"
-                      >
-                        <Eye className="w-3 h-3" />
-                        {isExpanded ? "Less" : "View"}
-                      </button>
                     </div>
 
-                    {/* Row 2: Add Synced Product / Linked Status */}
-                    <div className="relative">
-                      {linked ? (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-400/5 border border-emerald-400/20">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span className="text-xs text-emerald-400 font-medium truncate">{linked.title}</span>
-                          <button
-                            onClick={() => { setLinkedProducts((prev) => { const n = { ...prev }; delete n[post.id]; return n; }); }}
-                            className="ml-auto text-[10px] text-gray-500 hover:text-red-400 transition-colors shrink-0"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
+                    {/* Add Synced Product / Linked Status */}
+                    {linked ? (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-400/5 border border-emerald-400/20">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="text-xs text-emerald-400 font-medium truncate">{linked.title}</span>
                         <button
-                          onClick={() => setLinkSelectorOpen(isSelectorOpen ? null : post.id)}
-                          className={cn(
-                            "w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                            "bg-linear-to-r from-primary/20 to-cyan-400/20 border border-primary/30 text-primary hover:from-primary/30 hover:to-cyan-400/30 hover:border-primary/50"
-                          )}
+                          onClick={() => { setLinkedProducts((prev) => { const n = { ...prev }; delete n[post.id]; return n; }); }}
+                          className="ml-auto text-[10px] text-gray-500 hover:text-red-400 transition-colors shrink-0"
                         >
-                          <Link2 className="w-3.5 h-3.5" /> Add Your Synced Product
+                          Remove
                         </button>
-                      )}
-
-                      {/* Product Selector Dropdown */}
-                      <AnimatePresence>
-                        {isSelectorOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -5 }}
-                            className="absolute top-full left-0 right-0 mt-2 z-50 bg-black/95 border border-white/10 rounded-xl overflow-hidden backdrop-blur-xl shadow-2xl max-h-48 overflow-y-auto"
-                          >
-                            {loadingPages ? (
-                              <div className="flex items-center justify-center py-4 gap-2">
-                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                                <span className="text-xs text-gray-400">Loading...</span>
-                              </div>
-                            ) : syncedPages.length === 0 ? (
-                              <div className="p-4 text-center text-xs text-gray-500">
-                                No synced products yet. Sync a product first from Recurring Wealth Streams or Profit Accelerator.
-                              </div>
-                            ) : (
-                              syncedPages.map((page) => {
-                                const pnc = NICHE_COLORS[page.niche || ""] || DEFAULT_NC;
-                                return (
-                                  <button
-                                    key={page.id}
-                                    onClick={() => handleLinkProduct(post.id, page)}
-                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
-                                  >
-                                    <span className="text-xs text-gray-300 font-medium truncate">{page.title}</span>
-                                    {page.niche && (
-                                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border ml-auto shrink-0", pnc.text, pnc.bg, pnc.border)}>
-                                        {page.niche}
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setProductModalPostId(post.id)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all bg-linear-to-r from-primary/20 to-cyan-400/20 border border-primary/30 text-primary hover:from-primary/30 hover:to-cyan-400/30 hover:border-primary/50"
+                      >
+                        <Link2 className="w-3.5 h-3.5" /> Add Your Synced Product
+                      </button>
+                    )}
                   </div>
                 </div>
               </GlassPanel>
@@ -965,6 +1100,18 @@ export default function SocialPayoutsPage() {
           );
         })}
       </div>
+
+      {/* Product Selector Modal */}
+      <AnimatePresence>
+        {productModalPostId !== null && (
+          <ProductSelectorModal
+            syncedPages={syncedPages}
+            loading={loadingPages}
+            onSelect={(page) => handleLinkProduct(productModalPostId, page)}
+            onClose={() => setProductModalPostId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
