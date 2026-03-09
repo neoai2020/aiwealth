@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { NeonButton } from "@/components/ui/neon-button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/auth-context";
 import {
   Rocket,
   Search,
@@ -25,6 +27,12 @@ import {
   Image as ImageIcon,
   FileText,
   Sparkles,
+  Loader2,
+  ExternalLink,
+  MessageSquare,
+  RefreshCw,
+  BarChart3,
+  Globe,
 } from "lucide-react";
 
 /* ─── Niche Palette ─── */
@@ -140,6 +148,74 @@ interface SocialPost {
   imagePrompt: string;
 }
 
+const IMAGE_STYLES = [
+  "modern minimalist flat design",
+  "vibrant gradient social media graphic",
+  "clean professional marketing banner",
+  "bold typography poster style",
+  "sleek dark themed promotional art",
+];
+
+function getImageUrl(product: Product, postId: number): string {
+  const style = IMAGE_STYLES[postId % IMAGE_STYLES.length];
+  const prompt = `${style}, ${product.niche}, ${product.name}, digital marketing, clean layout, no text overlay, high quality`;
+  const seed = product.id * 1000 + postId;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=450&seed=${seed}&nologo=true`;
+}
+
+function LazyPostImage({ product, postId }: { product: Product; postId: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); } },
+      { rootMargin: "200px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const src = isVisible ? getImageUrl(product, postId) : undefined;
+
+  return (
+    <div ref={ref} className="aspect-video bg-black/40 relative overflow-hidden">
+      {(!loaded || !isVisible) && !error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+            Generating...
+          </span>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 bg-linear-to-br from-white/5 via-black/40 to-white/5 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-gray-600">
+            <ImageIcon className="w-8 h-8" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Image Unavailable</span>
+          </div>
+        </div>
+      )}
+      {src && !error && (
+        <img
+          src={src}
+          alt={`Social post for ${product.name}`}
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
+            loaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+        />
+      )}
+    </div>
+  );
+}
+
 function generatePosts(product: Product): SocialPost[] {
   const templates = [
     { p: "facebook" as const, t: `Are you tired of struggling with ${product.niche.toLowerCase()}? ${product.name} changed everything for me. This program gives you a step-by-step system that actually works. If you're serious about results, check it out!` },
@@ -166,7 +242,7 @@ function generatePosts(product: Product): SocialPost[] {
       id: i + 1,
       text: t.t + variation,
       platform: t.p,
-      imagePrompt: `Professional social media graphic for ${product.name} - ${product.niche}`,
+      imagePrompt: `${product.name} ${product.niche}`,
     });
   }
   return posts;
@@ -184,15 +260,23 @@ type SortKey = "commission" | "popularity" | "name";
 /* ════════════════════════ PAGE ════════════════════════ */
 
 export default function AcceleratorPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [nicheFilter, setNicheFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortKey>("commission");
-  const [deployedIds, setDeployedIds] = useState<Set<number>>(new Set());
+  const [syncedIds, setSyncedIds] = useState<Set<number>>(new Set());
+  const [syncingId, setSyncingId] = useState<number | null>(null);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [postPlatformFilter, setPostPlatformFilter] = useState<string>("all");
   const [expandedPost, setExpandedPost] = useState<number | null>(null);
   const [copiedPostId, setCopiedPostId] = useState<number | null>(null);
+
+  /* Traffic state */
+  const [trafficProduct, setTrafficProduct] = useState<Product | null>(null);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const [trafficUrls, setTrafficUrls] = useState<{ url: string; comment?: string; isGenerating?: boolean; copied?: boolean }[]>([]);
+  const [trafficNiche, setTrafficNiche] = useState("");
 
   /* Filtered & sorted products */
   const filteredProducts = useMemo(() => {
@@ -223,8 +307,29 @@ export default function AcceleratorPage() {
     return list;
   }, [selectedProduct, postPlatformFilter]);
 
-  const handleDeploy = (product: Product) => {
-    setDeployedIds((prev) => new Set(prev).add(product.id));
+  const handleSync = async (product: Product) => {
+    if (!user || syncedIds.has(product.id) || syncingId === product.id) return;
+    setSyncingId(product.id);
+    try {
+      const { error } = await supabase.from("bridges").insert({
+        user_id: user.id,
+        title: product.name,
+        affiliate_url: "",
+        status: "live",
+        traffic: String(Math.floor(product.popularity * 12)),
+        earnings: `$${product.estMin} – $${product.estMax}`,
+        niche: product.niche,
+      });
+      if (error) {
+        console.error("Error syncing page:", error);
+      } else {
+        setSyncedIds((prev) => new Set(prev).add(product.id));
+      }
+    } catch (err) {
+      console.error("Error:", err);
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   const handleCopyPost = (post: SocialPost) => {
@@ -232,6 +337,248 @@ export default function AcceleratorPage() {
     setCopiedPostId(post.id);
     setTimeout(() => setCopiedPostId(null), 2000);
   };
+
+  /* Traffic handlers */
+  const handleInstantTraffic = async (product: Product) => {
+    setTrafficProduct(product);
+    setTrafficLoading(true);
+    setTrafficUrls([]);
+
+    let attempts = 0;
+    const maxAttempts = 4;
+    let success = false;
+
+    while (attempts < maxAttempts && !success) {
+      try {
+        attempts++;
+        if (attempts > 1) await new Promise((r) => setTimeout(r, 2000));
+
+        const response = await fetch("/api/scrape-urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keywords: product.name, niche: product.niche }),
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          setTrafficUrls(data.urls.map((url: string) => ({ url })));
+          setTrafficNiche(data.niche || product.niche);
+          success = true;
+        } else {
+          throw new Error(data.error || "Failed");
+        }
+      } catch (err) {
+        console.error(`Traffic attempt ${attempts} failed:`, err);
+      }
+    }
+    setTrafficLoading(false);
+  };
+
+  const handleGenerateComment = async (urlIndex: number) => {
+    if (!trafficProduct) return;
+    const updated = [...trafficUrls];
+    updated[urlIndex] = { ...updated[urlIndex], isGenerating: true };
+    setTrafficUrls(updated);
+
+    try {
+      const response = await fetch("/api/generate-comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUrl: trafficUrls[urlIndex].url,
+          bridgeUrl: "",
+          niche: trafficProduct.niche,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        const final = [...trafficUrls];
+        final[urlIndex] = { ...final[urlIndex], comment: data.comment, isGenerating: false };
+        setTrafficUrls(final);
+      }
+    } catch (err) {
+      console.error("Error generating comment:", err);
+      const final = [...trafficUrls];
+      final[urlIndex] = { ...final[urlIndex], isGenerating: false };
+      setTrafficUrls(final);
+    }
+  };
+
+  const handleRegenerateComment = async (urlIndex: number) => {
+    const updated = [...trafficUrls];
+    updated[urlIndex] = { ...updated[urlIndex], comment: undefined, isGenerating: true };
+    setTrafficUrls(updated);
+    await handleGenerateComment(urlIndex);
+  };
+
+  const handleCopyComment = (urlIndex: number) => {
+    const comment = trafficUrls[urlIndex]?.comment;
+    if (!comment) return;
+    navigator.clipboard.writeText(comment);
+    const updated = [...trafficUrls];
+    updated[urlIndex] = { ...updated[urlIndex], copied: true };
+    setTrafficUrls(updated);
+    setTimeout(() => {
+      setTrafficUrls((prev) => {
+        const reset = [...prev];
+        if (reset[urlIndex]) reset[urlIndex] = { ...reset[urlIndex], copied: false };
+        return reset;
+      });
+    }, 2000);
+  };
+
+  function extractDomain(url: string): string {
+    try { return new URL(url).hostname.replace("www.", ""); }
+    catch { return url; }
+  }
+
+  function formatUrl(url: string, maxLen = 60): string {
+    try {
+      const u = new URL(url);
+      let path = u.pathname;
+      if (path.length > maxLen) path = path.substring(0, maxLen) + "...";
+      return u.hostname.replace("www.", "") + path;
+    } catch { return url.length > maxLen ? url.substring(0, maxLen) + "..." : url; }
+  }
+
+  /* ─── Instant Traffic View ─── */
+  if (trafficProduct) {
+    const nc = NICHE_COLORS[trafficProduct.niche] || DEFAULT_NC;
+    return (
+      <div className="space-y-8 pb-20 font-(family-name:--font-display)">
+        <button
+          onClick={() => { setTrafficProduct(null); setTrafficUrls([]); }}
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Products
+        </button>
+
+        <GlassPanel intensity="low" className="p-5 border-primary/10">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{trafficProduct.name}</h2>
+              <span className={cn("text-xs font-bold", nc.text)}>{trafficProduct.niche}</span>
+            </div>
+          </div>
+        </GlassPanel>
+
+        <div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-2">
+            Instant Traffic — Find Articles & Generate Comments
+          </h2>
+          <p className="text-gray-400">
+            High-ranking articles in the <span className="text-primary font-semibold">{trafficNiche || trafficProduct.niche}</span> niche. Generate AI comments to drive traffic.
+          </p>
+        </div>
+
+        {trafficLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <p className="text-gray-400 text-sm animate-pulse">Searching for high-ranking articles...</p>
+          </div>
+        ) : trafficUrls.length === 0 ? (
+          <GlassPanel className="p-12 text-center">
+            <p className="text-gray-400">No articles found. Try again later.</p>
+            <button
+              onClick={() => handleInstantTraffic(trafficProduct)}
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/30 text-primary text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-primary/20 transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Retry Search
+            </button>
+          </GlassPanel>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">{trafficUrls.length} articles found</p>
+            {trafficUrls.map((item, urlIndex) => (
+              <GlassPanel
+                key={urlIndex}
+                intensity="low"
+                className="p-5 border-white/5 hover:border-primary/20 transition-all duration-300"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-primary/10 text-primary border border-primary/30">
+                        {extractDomain(item.url)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <BarChart3 className="w-3 h-3 text-emerald-400" />
+                        <span className="text-[10px] text-emerald-400 font-bold">High Authority</span>
+                      </div>
+                      <span className="text-[10px] text-gray-600">#{urlIndex + 1}</span>
+                    </div>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-gray-300 hover:text-primary transition-colors flex items-center gap-2"
+                      title={item.url}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+                      <span className="truncate">{formatUrl(item.url)}</span>
+                    </a>
+                  </div>
+
+                  {!item.comment && (
+                    <button
+                      onClick={() => handleGenerateComment(urlIndex)}
+                      disabled={item.isGenerating}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wide bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 hover:border-primary/50 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {item.isGenerating ? (
+                        <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                      ) : (
+                        <><MessageSquare className="w-3 h-3" /> Generate Comment</>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {item.comment && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 space-y-3">
+                    <div className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      {item.comment}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleCopyComment(urlIndex)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-400/10 text-xs font-medium text-gray-400 hover:text-emerald-400 border border-white/5 hover:border-emerald-400/30 transition-all"
+                      >
+                        {item.copied ? (
+                          <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied!</span></>
+                        ) : (
+                          <><Copy className="w-3 h-3" /> Copy to Clipboard</>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleRegenerateComment(urlIndex)}
+                        disabled={item.isGenerating}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-gray-400 hover:text-white border border-white/5 hover:border-white/10 transition-all disabled:opacity-50"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Regenerate
+                      </button>
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-blue-400/10 text-xs font-medium text-gray-400 hover:text-blue-400 border border-white/5 hover:border-blue-400/30 transition-all"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Open Article
+                      </a>
+                    </div>
+                  </motion.div>
+                )}
+              </GlassPanel>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   /* ─── Social Posts View ─── */
   if (selectedProduct) {
@@ -318,18 +665,13 @@ export default function AcceleratorPage() {
                   intensity="low"
                   className="p-0 border-white/5 hover:border-primary/20 transition-all duration-300 overflow-hidden h-full flex flex-col"
                 >
-                  {/* Image Placeholder */}
-                  <div className="aspect-video bg-linear-to-br from-white/5 via-black/40 to-white/5 flex items-center justify-center relative">
-                    <div className="flex flex-col items-center gap-2 text-gray-600">
-                      <ImageIcon className="w-8 h-8" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">
-                        AI Generated Image
-                      </span>
-                    </div>
+                  {/* AI Generated Image */}
+                  <div className="relative">
+                    <LazyPostImage product={selectedProduct} postId={post.id} />
                     {/* Platform Badge */}
                     <div
                       className={cn(
-                        "absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border",
+                        "absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border backdrop-blur-sm",
                         pc.bg,
                         pc.color,
                         pc.border
@@ -380,10 +722,16 @@ export default function AcceleratorPage() {
                         )}
                       </button>
 
-                      <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-xs font-medium text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/20 transition-all">
+                      <a
+                        href={getImageUrl(selectedProduct, post.id)}
+                        download={`${selectedProduct.name.replace(/\s+/g, "-").toLowerCase()}-post-${post.id}.jpg`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-xs font-medium text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/20 transition-all"
+                      >
                         <Download className="w-3 h-3" />
                         Image
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </GlassPanel>
@@ -425,7 +773,7 @@ export default function AcceleratorPage() {
       {/* Section A Header */}
       <div>
         <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight mb-1">
-          50 High-Converting Pages — Ready to Deploy
+          50 High-Converting Pages — Ready to Sync
         </h2>
         <p className="text-gray-400 text-sm">
           AI-generated landing pages for the highest-performing products on
@@ -490,7 +838,8 @@ export default function AcceleratorPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredProducts.map((product, index) => {
           const nc = NICHE_COLORS[product.niche] || DEFAULT_NC;
-          const isDeployed = deployedIds.has(product.id);
+          const isSynced = syncedIds.has(product.id);
+          const isSyncing = syncingId === product.id;
 
           return (
             <motion.div
@@ -543,35 +892,40 @@ export default function AcceleratorPage() {
                 {/* Actions */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleDeploy(product)}
-                    disabled={isDeployed}
+                    onClick={() => handleSync(product)}
+                    disabled={isSynced || isSyncing}
                     className={cn(
                       "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300",
-                      isDeployed
+                      isSynced
                         ? "bg-emerald-400/10 border border-emerald-400/30 text-emerald-400 cursor-default"
-                        : "bg-linear-to-r from-primary to-cyan-400 text-black hover:shadow-[0_0_20px_rgba(0,242,255,0.2)]"
+                        : isSyncing
+                          ? "bg-white/10 border border-white/20 text-gray-400 cursor-wait"
+                          : "bg-linear-to-r from-primary to-cyan-400 text-black hover:shadow-[0_0_20px_rgba(0,242,255,0.2)]"
                     )}
                   >
-                    {isDeployed ? (
+                    {isSynced ? (
                       <>
-                        <CheckCircle className="w-3.5 h-3.5" /> Deployed
+                        <CheckCircle className="w-3.5 h-3.5" /> Synced
+                      </>
+                    ) : isSyncing ? (
+                      <>
+                        <Zap className="w-3.5 h-3.5 animate-pulse" /> Syncing...
                       </>
                     ) : (
                       <>
-                        <Rocket className="w-3.5 h-3.5" /> Deploy Page
+                        <Rocket className="w-3.5 h-3.5" /> Sync Page
                       </>
                     )}
                   </button>
 
-                  <button
-                    onClick={() => setSelectedProduct(product)}
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-gray-400 uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all"
-                    title="View Social Posts"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    Posts
-                  </button>
                 </div>
+
+                <button
+                  onClick={() => handleInstantTraffic(product)}
+                  className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-400 uppercase tracking-wider hover:bg-amber-500/20 hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] transition-all duration-300"
+                >
+                  <Zap className="w-3.5 h-3.5" /> Instant Traffic
+                </button>
               </GlassPanel>
             </motion.div>
           );

@@ -1,339 +1,581 @@
 "use client";
 
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { RefreshCw, DollarSign, PieChart, Layers, Calendar, ArrowUpRight, ShieldCheck, Zap, Plus, ChevronRight, TrendingUp, Users, HeartPulse, Wallet, ShieldAlert, BookOpen, Search, Rocket, CheckCircle2 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { NeonButton } from "@/components/ui/neon-button";
 import { cn } from "@/lib/utils";
-import React, { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  RefreshCw,
+  Sparkles,
+  Rocket,
+  Zap,
+  ArrowLeft,
+  FileText,
+  Copy,
+  Check,
+  Download,
+  Eye,
+  Facebook,
+  Twitter,
+  Instagram,
+  Image as ImageIcon,
+  Loader2,
+  ExternalLink,
+  MessageSquare,
+  BarChart3,
+  Globe,
+  CheckCircle,
+  Crown,
+} from "lucide-react";
+
+/* ─── Niche Palette ─── */
+const NICHE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
+  "Health & Fitness": { text: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
+  "Personal Finance": { text: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20" },
+  "Self-Improvement": { text: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20" },
+  "Online Business": { text: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
+  "Weight Loss": { text: "text-rose-400", bg: "bg-rose-400/10", border: "border-rose-400/20" },
+  "Crypto Trading": { text: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
+  "Manifestation": { text: "text-violet-400", bg: "bg-violet-400/10", border: "border-violet-400/20" },
+  "Relationship Coaching": { text: "text-pink-400", bg: "bg-pink-400/10", border: "border-pink-400/20" },
+  "Productivity": { text: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20" },
+  "Spirituality": { text: "text-indigo-400", bg: "bg-indigo-400/10", border: "border-indigo-400/20" },
+};
+const DEFAULT_NC = { text: "text-gray-400", bg: "bg-gray-400/10", border: "border-gray-400/20" };
+
+/* ─── Top 10 Recurring Products ─── */
+interface RecurringProduct {
+  id: number;
+  rank: number;
+  name: string;
+  niche: string;
+  monthlyCommission: number;
+  estMonthlyRevenue: number;
+}
+
+const RECURRING_PRODUCTS: RecurringProduct[] = [
+  { id: 1, rank: 1, name: "Evergreen Wealth Formula", niche: "Online Business", monthlyCommission: 47, estMonthlyRevenue: 2820 },
+  { id: 2, rank: 2, name: "BioFit Pro Membership", niche: "Health & Fitness", monthlyCommission: 39, estMonthlyRevenue: 2340 },
+  { id: 3, rank: 3, name: "CryptoVault Premium", niche: "Crypto Trading", monthlyCommission: 59, estMonthlyRevenue: 3540 },
+  { id: 4, rank: 4, name: "MindShift Academy", niche: "Self-Improvement", monthlyCommission: 34, estMonthlyRevenue: 2040 },
+  { id: 5, rank: 5, name: "Passive Cash Blueprint", niche: "Personal Finance", monthlyCommission: 42, estMonthlyRevenue: 2520 },
+  { id: 6, rank: 6, name: "SlimCycle 365", niche: "Weight Loss", monthlyCommission: 29, estMonthlyRevenue: 1740 },
+  { id: 7, rank: 7, name: "Abundance Inner Circle", niche: "Manifestation", monthlyCommission: 37, estMonthlyRevenue: 2220 },
+  { id: 8, rank: 8, name: "RelationshipOS Pro", niche: "Relationship Coaching", monthlyCommission: 31, estMonthlyRevenue: 1860 },
+  { id: 9, rank: 9, name: "Deep Work Mastery", niche: "Productivity", monthlyCommission: 27, estMonthlyRevenue: 1620 },
+  { id: 10, rank: 10, name: "Soul Ascension Path", niche: "Spirituality", monthlyCommission: 33, estMonthlyRevenue: 1980 },
+];
+
+/* ─── Social Posts ─── */
+interface SocialPost {
+  id: number;
+  text: string;
+  platform: "facebook" | "twitter" | "instagram";
+}
+
+const platformConfig = {
+  facebook: { label: "FB", color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20", icon: Facebook },
+  twitter: { label: "TW", color: "text-sky-400", bg: "bg-sky-400/10", border: "border-sky-400/20", icon: Twitter },
+  instagram: { label: "IG", color: "text-pink-400", bg: "bg-pink-400/10", border: "border-pink-400/20", icon: Instagram },
+};
+
+const IMAGE_STYLES = [
+  "modern minimalist flat design",
+  "vibrant gradient social media graphic",
+  "clean professional marketing banner",
+  "bold typography poster style",
+  "sleek dark themed promotional art",
+];
+
+function getImageUrl(product: RecurringProduct, postId: number): string {
+  const style = IMAGE_STYLES[postId % IMAGE_STYLES.length];
+  const prompt = `${style}, ${product.niche}, ${product.name}, recurring income, digital marketing, clean layout, no text overlay, high quality`;
+  const seed = product.id * 2000 + postId;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=450&seed=${seed}&nologo=true`;
+}
+
+function LazyPostImage({ product, postId }: { product: RecurringProduct; postId: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); } },
+      { rootMargin: "200px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const src = isVisible ? getImageUrl(product, postId) : undefined;
+
+  return (
+    <div ref={ref} className="aspect-video bg-black/40 relative overflow-hidden">
+      {(!loaded || !isVisible) && !error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Generating...</span>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 bg-linear-to-br from-white/5 via-black/40 to-white/5 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-gray-600">
+            <ImageIcon className="w-8 h-8" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Image Unavailable</span>
+          </div>
+        </div>
+      )}
+      {src && !error && (
+        <img
+          src={src}
+          alt={`Social post for ${product.name}`}
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
+            loaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+        />
+      )}
+    </div>
+  );
+}
+
+function generatePosts(product: RecurringProduct): SocialPost[] {
+  const templates = [
+    { p: "facebook" as const, t: `Stop trading time for money. ${product.name} pays you EVERY month for every customer you refer. This is real recurring income in ${product.niche.toLowerCase()}. Check it out!` },
+    { p: "twitter" as const, t: `Recurring commissions > one-time payouts. ${product.name} just deposited $${product.monthlyCommission} into my account... again. Monthly. Like clockwork.` },
+    { p: "instagram" as const, t: `This is what passive income looks like. ${product.name} pays me every single month. No extra work, just recurring commissions. #RecurringIncome #${product.niche.replace(/\s+/g, "")}` },
+    { p: "facebook" as const, t: `Imagine getting paid $${product.monthlyCommission}/month for every person you refer to ${product.name}. That's not a dream, that's my Tuesday. Here's how I built this stream...` },
+    { p: "twitter" as const, t: `The power of recurring commissions: 10 referrals × $${product.monthlyCommission}/mo = $${product.monthlyCommission * 10}/mo passive income. ${product.name} makes this possible. 🔄` },
+    { p: "instagram" as const, t: `Month 3 with ${product.name}: still getting paid for referrals I made on day 1. THIS is how you build wealth. DM "RECURRING" for details! #PassiveIncome` },
+    { p: "facebook" as const, t: `Why I only promote recurring commission products now: ${product.name} pays me $${product.monthlyCommission}/mo per referral. Do the math on 50 referrals. Life changing.` },
+    { p: "twitter" as const, t: `Hot tip: Focus on recurring commission products like ${product.name}. One referral = income for MONTHS. That's leverage. 🚀` },
+    { p: "instagram" as const, t: `Building recurring income streams with ${product.name}. Every referral is a monthly paycheck. The best part? The product sells itself. #${product.niche.replace(/\s+/g, "")} #MonthlyIncome` },
+    { p: "facebook" as const, t: `Just hit a milestone: ${product.name} recurring commissions now cover my phone bill, Netflix, AND gym membership. All from referrals I made months ago. This compounds.` },
+    { p: "twitter" as const, t: `${product.name} recurring commission update: Still getting paid. Every. Single. Month. Best decision I made in ${product.niche.toLowerCase()}.` },
+    { p: "instagram" as const, t: `Woke up to another ${product.name} commission notification. $${product.monthlyCommission} recurring. Again. Build once, get paid forever. Link in bio! #RecurringWealth` },
+    { p: "facebook" as const, t: `The difference between a one-time $100 and $${product.monthlyCommission}/month recurring is MASSIVE over a year. ${product.name} gets this right. Highly recommend for anyone in ${product.niche.toLowerCase()}.` },
+    { p: "twitter" as const, t: `My ${product.niche.toLowerCase()} income stack: ${product.name} = $${product.monthlyCommission}/mo recurring per referral. Compounding is the 8th wonder. 💰` },
+    { p: "instagram" as const, t: `If you're not building recurring income streams, you're leaving money on the table. ${product.name} changed my financial game. #FinancialFreedom #${product.niche.replace(/\s+/g, "")}` },
+  ];
+  const posts: SocialPost[] = [];
+  for (let i = 0; i < 50; i++) {
+    const t = templates[i % templates.length];
+    const variation = i >= templates.length ? ` (Post ${Math.floor(i / templates.length) + 1})` : "";
+    posts.push({ id: i + 1, text: t.t + variation, platform: t.p });
+  }
+  return posts;
+}
+
+/* ════════════════════════ PAGE ════════════════════════ */
 
 export default function RecurringWealthPage() {
-    const [selectedTier, setSelectedTier] = useState("Pro");
+  const { user } = useAuth();
+  const [syncedIds, setSyncedIds] = useState<Set<number>>(new Set());
+  const [syncingId, setSyncingId] = useState<number | null>(null);
 
+  /* Posts state */
+  const [postsProduct, setPostsProduct] = useState<RecurringProduct | null>(null);
+  const [postPlatformFilter, setPostPlatformFilter] = useState<string>("all");
+  const [expandedPost, setExpandedPost] = useState<number | null>(null);
+  const [copiedPostId, setCopiedPostId] = useState<number | null>(null);
+
+  /* Traffic state */
+  const [trafficProduct, setTrafficProduct] = useState<RecurringProduct | null>(null);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const [trafficUrls, setTrafficUrls] = useState<{ url: string; comment?: string; isGenerating?: boolean; copied?: boolean }[]>([]);
+  const [trafficNiche, setTrafficNiche] = useState("");
+
+  const posts = useMemo(() => {
+    if (!postsProduct) return [];
+    let list = generatePosts(postsProduct);
+    if (postPlatformFilter !== "all") list = list.filter((p) => p.platform === postPlatformFilter);
+    return list;
+  }, [postsProduct, postPlatformFilter]);
+
+  /* Sync handler */
+  const handleSync = async (product: RecurringProduct) => {
+    if (!user || syncedIds.has(product.id) || syncingId === product.id) return;
+    setSyncingId(product.id);
+    try {
+      const { error } = await supabase.from("bridges").insert({
+        user_id: user.id,
+        title: product.name,
+        affiliate_url: "",
+        status: "live",
+        traffic: String(product.estMonthlyRevenue),
+        earnings: `$${product.monthlyCommission}/mo recurring`,
+        niche: product.niche,
+      });
+      if (!error) setSyncedIds((prev) => new Set(prev).add(product.id));
+      else console.error("Sync error:", error);
+    } catch (err) {
+      console.error("Error:", err);
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  /* Copy post */
+  const handleCopyPost = (post: SocialPost) => {
+    navigator.clipboard.writeText(post.text);
+    setCopiedPostId(post.id);
+    setTimeout(() => setCopiedPostId(null), 2000);
+  };
+
+  /* Traffic handlers */
+  const handleInstantTraffic = async (product: RecurringProduct) => {
+    setTrafficProduct(product);
+    setTrafficLoading(true);
+    setTrafficUrls([]);
+
+    let attempts = 0;
+    let success = false;
+    while (attempts < 4 && !success) {
+      try {
+        attempts++;
+        if (attempts > 1) await new Promise((r) => setTimeout(r, 2000));
+        const response = await fetch("/api/scrape-urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keywords: product.name, niche: product.niche }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setTrafficUrls(data.urls.map((url: string) => ({ url })));
+          setTrafficNiche(data.niche || product.niche);
+          success = true;
+        } else throw new Error(data.error || "Failed");
+      } catch (err) {
+        console.error(`Traffic attempt ${attempts} failed:`, err);
+      }
+    }
+    setTrafficLoading(false);
+  };
+
+  const handleGenerateComment = async (urlIndex: number) => {
+    if (!trafficProduct) return;
+    const updated = [...trafficUrls];
+    updated[urlIndex] = { ...updated[urlIndex], isGenerating: true };
+    setTrafficUrls(updated);
+    try {
+      const res = await fetch("/api/generate-comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUrl: trafficUrls[urlIndex].url, bridgeUrl: "", niche: trafficProduct.niche }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const final = [...trafficUrls];
+        final[urlIndex] = { ...final[urlIndex], comment: data.comment, isGenerating: false };
+        setTrafficUrls(final);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      const final = [...trafficUrls];
+      final[urlIndex] = { ...final[urlIndex], isGenerating: false };
+      setTrafficUrls(final);
+    }
+  };
+
+  const handleRegenerateComment = async (urlIndex: number) => {
+    const updated = [...trafficUrls];
+    updated[urlIndex] = { ...updated[urlIndex], comment: undefined, isGenerating: true };
+    setTrafficUrls(updated);
+    await handleGenerateComment(urlIndex);
+  };
+
+  const handleCopyComment = (urlIndex: number) => {
+    const comment = trafficUrls[urlIndex]?.comment;
+    if (!comment) return;
+    navigator.clipboard.writeText(comment);
+    const updated = [...trafficUrls];
+    updated[urlIndex] = { ...updated[urlIndex], copied: true };
+    setTrafficUrls(updated);
+    setTimeout(() => {
+      setTrafficUrls((prev) => {
+        const reset = [...prev];
+        if (reset[urlIndex]) reset[urlIndex] = { ...reset[urlIndex], copied: false };
+        return reset;
+      });
+    }, 2000);
+  };
+
+  function extractDomain(url: string): string {
+    try { return new URL(url).hostname.replace("www.", ""); }
+    catch { return url; }
+  }
+
+  function formatUrl(url: string, maxLen = 60): string {
+    try {
+      const u = new URL(url);
+      let path = u.pathname;
+      if (path.length > maxLen) path = path.substring(0, maxLen) + "...";
+      return u.hostname.replace("www.", "") + path;
+    } catch { return url.length > maxLen ? url.substring(0, maxLen) + "..." : url; }
+  }
+
+  /* ─── TRAFFIC VIEW ─── */
+  if (trafficProduct) {
+    const nc = NICHE_COLORS[trafficProduct.niche] || DEFAULT_NC;
     return (
-        <div className="space-y-12 pb-32">
-            {/* Header Section */}
-            <section className="relative overflow-hidden p-8 md:p-16 rounded-[2.5rem] border border-purple-500/20 bg-linear-to-br from-purple-500/10 via-black to-purple-500/5 shadow-2xl shadow-purple-500/10">
-                <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
+      <div className="space-y-8 pb-20 font-(family-name:--font-display)">
+        <button onClick={() => { setTrafficProduct(null); setTrafficUrls([]); }} className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Products
+        </button>
 
-                <div className="relative z-10 flex flex-col items-center text-center gap-10">
-                    <div className="space-y-6 max-w-3xl">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 mx-auto">
-                            Elite Stream Engine
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter leading-none font-(family-name:--font-display)">
-                            RECURRING <br />
-                            <span className="inline-block pr-4 text-transparent bg-clip-text bg-linear-to-r from-purple-400 to-pink-500 italic uppercase">WEALTH</span>
-                        </h1>
-                        <p className="text-gray-400 text-lg md:text-xl leading-relaxed font-medium max-w-2xl mx-auto">
-                            The ultimate blueprint for sustainable investment growth. Our engine builds automated, high-retention wealth portfolios that scale your capital.
-                        </p>
-                        <div className="flex flex-wrap justify-center gap-4 pt-4">
-                            <NeonButton className="px-10 h-14 bg-purple-600 hover:bg-purple-500 border-none text-[12px] tracking-widest uppercase font-black shadow-[0_0_30px_rgba(168,85,247,0.3)]">
-                                <RefreshCw className="mr-2 w-4 h-4" /> SYNC WEALTH STREAMS
-                            </NeonButton>
-                            <button className="px-10 h-14 rounded-full text-white text-[10px] font-black tracking-widest uppercase hover:bg-white/10 transition-all flex items-center gap-2 bg-white/5">
-                                <Search className="w-4 h-4" /> EXPLORE BLUEPRINTS
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Income Pillars */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                    { label: "Active Subs", value: "1,240", icon: Users, color: "text-blue-400", sub: "+12% MoM" },
-                    { label: "Retention Rate", value: "94.8%", icon: HeartPulse, color: "text-purple-400", sub: "Elite Tier" },
-                    { label: "Churn Stability", value: "98.2", icon: ShieldCheck, color: "text-emerald-400", sub: "Verified" },
-                    { label: "Est. LTV", value: "$420", icon: DollarSign, color: "text-yellow-400", sub: "Per Stream" },
-                ].map((stat, i) => (
-                    <motion.div
-                        key={stat.label}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                    >
-                        <GlassPanel intensity="low" className="p-8 border-white/5 group hover:border-purple-500/30 transition-all duration-500 relative overflow-hidden bg-white/2">
-                            <div className={`w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center mb-6 group-hover:border-purple-500/50 transition-all shadow-xl group-hover:shadow-purple-500/20`}>
-                                <stat.icon className={cn("w-6 h-6 transition-transform duration-500 group-hover:scale-110", stat.color)} />
-                            </div>
-                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1">{stat.label}</h4>
-                            <p className="text-4xl font-black text-white font-display tracking-tighter mb-1 italic">{stat.value}</p>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-[10px] font-bold uppercase ${stat.color}`}>{stat.sub}</span>
-                                <div className="h-px flex-1 bg-white/5" />
-                            </div>
-                        </GlassPanel>
-                    </motion.div>
-                ))}
+        <GlassPanel intensity="low" className="p-5 border-primary/10">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-primary" />
             </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{trafficProduct.name}</h2>
+              <span className={cn("text-xs font-bold", nc.text)}>{trafficProduct.niche} — ${trafficProduct.monthlyCommission}/mo recurring</span>
+            </div>
+          </div>
+        </GlassPanel>
 
-            {/* Subscription Builder UI (NEW) */}
-            <section className="space-y-8">
-                <div className="px-2">
-                    <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">Subscription <span className="text-purple-500">Architect</span></h2>
-                    <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1 italic">Configure high-retention investment tiers</p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Tier Configurator */}
-                    <GlassPanel className="lg:col-span-2 p-8 md:p-12 space-y-8 relative overflow-hidden">
-
-                        <div className="flex flex-wrap gap-4 relative z-10">
-                            {["Basic", "Pro", "Elite"].map(tier => (
-                                <button
-                                    key={tier}
-                                    onClick={() => setSelectedTier(tier)}
-                                    className={cn(
-                                        "px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all",
-                                        selectedTier === tier
-                                            ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-                                            : "bg-white/5 text-gray-400 hover:bg-white/10"
-                                    )}
-                                >
-                                    {tier} Node
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 relative z-10 items-stretch">
-                            <div className="md:col-span-7 space-y-8 flex flex-col justify-center">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Base Payout</label>
-                                    <div className="text-4xl font-black text-white italic tracking-tighter">
-                                        {selectedTier === "Basic" ? "$19" : selectedTier === "Pro" ? "$49" : "$197"}<span className="text-sm text-gray-500 ml-1">/ mo</span>
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Node Features</h4>
-                                    <div className="space-y-3">
-                                        {[
-                                            "Automated Portfolio Rebalancing",
-                                            "Market Growth Access",
-                                            selectedTier !== "Basic" ? "Custom Domain Mapping" : null,
-                                            selectedTier === "Elite" ? "Direct API Integration" : null,
-                                        ].filter(Boolean).map((f, i) => (
-                                            <div key={i} className="flex items-center gap-3">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                                <span className="text-xs text-gray-300 font-medium">{f}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <GlassPanel intensity="low" className="md:col-span-5 p-6 bg-black/40 border-purple-500/20 flex flex-col justify-between">
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Growth Forecast</span>
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 leading-relaxed italic">
-                                        This tier configuration is optimized for {selectedTier === "Elite" ? "high-ticket whale leads" : "mass-market volume scaling"}.
-                                    </p>
-                                </div>
-                                <div className="pt-6 border-t border-white/5">
-                                    <div className="flex justify-between items-end mb-2">
-                                        <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Est. Monthly Scale</span>
-                                        <span className="text-xs font-black text-white italic">+$4,200</span>
-                                    </div>
-                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500/40 w-[65%] shadow-[0_0_10px_rgba(16,185,129,0.2)]" />
-                                    </div>
-                                </div>
-                            </GlassPanel>
-                        </div>
-
-                        <NeonButton className="w-full h-14 bg-purple-600 hover:bg-purple-500 border-none text-white font-black tracking-[0.2em] uppercase italic shadow-[0_0_30px_rgba(168,85,247,0.3)] mt-10">
-                            UPDATE STRATEGY
-                        </NeonButton>
-                    </GlassPanel>
-
-                    {/* Churn Shield Stats */}
-                    <div className="flex flex-col gap-6">
-                        <GlassPanel className="flex-1 p-8 border-purple-500/30 bg-linear-to-br from-purple-500/10 to-transparent flex flex-col justify-between">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="p-2 rounded-lg bg-purple-500/20 border border-purple-500/40">
-                                    <HeartPulse className="w-5 h-5 text-purple-400 animate-pulse" />
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Churn Shield</h3>
-                                    <p className="text-[10px] text-purple-400 font-bold tracking-widest uppercase">Active Protection</p>
-                                </div>
-                            </div>
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="flex justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                                        <span>Deflection Success</span>
-                                        <span className="text-purple-400">84%</span>
-                                    </div>
-                                    <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
-                                        <div className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)] w-[84%]" />
-                                    </div>
-                                </div>
-                                <p className="text-xs text-gray-400 leading-relaxed italic font-sans">
-                                    "Our AI detects cancellation signals through behavior patterns and automatically deploys portfolio-specific retention strategies."
-                                </p>
-                            </div>
-                        </GlassPanel>
-
-                        <GlassPanel intensity="low" className="p-6 space-y-3 border-orange-400/10 bg-orange-400/2">
-                            <div className="flex items-center gap-2">
-                                <ShieldAlert className="w-4 h-4 text-orange-400" />
-                                <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Active Alerts</span>
-                            </div>
-                            <div className="p-4 rounded-xl bg-orange-400/5 border border-orange-400/10">
-                                <p className="text-[11px] text-gray-400 font-medium leading-relaxed">3 subscribers in 'At-Risk' phase. Wealth Shield protocols engaged.</p>
-                            </div>
-                        </GlassPanel>
-                    </div>
-                </div>
-            </section>
-
-            {/* Passive Income Roadmap (Timeline) */}
-            <section className="space-y-12">
-                <div className="text-center space-y-4">
-                    <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic">Passive Income <span className="text-purple-500 underline decoration-purple-500/30">Roadmap</span></h2>
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-[0.3em]">Phase-based wealth compounding strategy</p>
-                </div>
-
-                <div className="relative pt-10 pb-10">
-                    {/* Central Line */}
-                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/5 -translate-x-1/2 hidden md:block" />
-
-                    <div className="space-y-20 relative z-10">
-                        {[
-                            { phase: "01", title: "Foundation Assets", desc: "Setting up your first 10 wealth portfolios and targeting core recurring niches (Software, Hosting, Subscriptions).", icon: Layers, align: "left" },
-                            { phase: "02", title: "Growth Compounding", desc: "Engaging the Accelerator engine to scale each portfolio to 1k active users and building the first tier-1 sub base.", icon: Zap, align: "right" },
-                            { phase: "03", title: "Equity Automation", desc: "Enabling Wealth Shield and automated rewards to maximize LTV and stabilizing revenue above $10k/mo.", icon: RefreshCw, align: "left" },
-                            { phase: "04", title: "Global Exit Strategy", desc: "Selling highly stabilized recurring portfolios on premium marketplaces for 24-36x monthly revenue multiples.", icon: Rocket, align: "right" },
-                        ].map((step, i) => (
-                            <div key={i} className={cn("flex flex-col md:flex-row items-center gap-10", step.align === "left" ? "md:flex-row" : "md:flex-row-reverse")}>
-                                <div className="flex-1 w-full">
-                                    <motion.div
-                                        initial={{ opacity: 0, x: step.align === "left" ? -50 : 50 }}
-                                        whileInView={{ opacity: 1, x: 0 }}
-                                        viewport={{ once: true }}
-                                    >
-                                        <GlassPanel className={cn("p-8 md:p-10 space-y-4 hover:border-purple-500/40 transition-all bg-white/1", step.align === "left" ? "text-right" : "text-left")}>
-                                            <div className={cn("flex items-center gap-4 mb-2", step.align === "left" ? "justify-end" : "justify-start")}>
-                                                <span className="text-5xl md:text-6xl font-black text-white/5 uppercase italic">{step.phase}</span>
-                                                <h3 className="text-2xl font-black text-white uppercase tracking-tight italic">{step.title}</h3>
-                                            </div>
-                                            <p className="text-gray-400 text-sm leading-relaxed max-w-lg ml-auto mr-auto md:ml-0 md:mr-0 inline-block font-medium opacity-80 group-hover:opacity-100 transition-opacity">
-                                                {step.desc}
-                                            </p>
-                                        </GlassPanel>
-                                    </motion.div>
-                                </div>
-
-                                <div className="shrink-0 relative">
-                                    <div className="w-16 h-16 rounded-full bg-black border border-purple-500/50 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.3)] relative z-20 overflow-hidden">
-                                        <div className="absolute inset-0 bg-purple-500/10 animate-pulse" />
-                                        <step.icon className="w-6 h-6 text-purple-400 relative z-10" />
-                                    </div>
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -z-10" />
-                                </div>
-
-                                <div className="flex-1 hidden md:block" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Premium Funnel Templates (NEW) */}
-            <section className="space-y-10">
-                <div className="flex flex-col md:flex-row items-end justify-between gap-6 px-2">
-                    <div>
-                        <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">Stream <span className="text-purple-500">Templates</span></h2>
-                        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1 italic">Deploy proven recurring architectures</p>
-                    </div>
-                    <button className="flex items-center gap-2 text-[10px] font-black text-purple-400 uppercase tracking-widest hover:text-white transition-colors">
-                        View Marketplace <ChevronRight className="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {[
-                        { title: "SaaS Bridge v1", niche: "Technology", roi: "240%", color: "border-blue-500/30" },
-                        { title: "Mastermind Node", niche: "Education", roi: "410%", color: "border-purple-500/30" },
-                        { title: "VPN Affiliate Box", niche: "Security", roi: "180%", color: "border-emerald-500/30" },
-                    ].map((tpl, i) => (
-                        <motion.div
-                            key={i}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            whileInView={{ opacity: 1, scale: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: i * 0.1 }}
-                        >
-                            <GlassPanel className={cn("p-8 space-y-6 group hover:shadow-2xl hover:shadow-purple-500/5 transition-all text-center relative overflow-hidden", tpl.color)}>
-                                <div className="space-y-1">
-                                    <h4 className="text-white font-black uppercase tracking-tight group-hover:text-purple-400 transition-colors text-lg italic">{tpl.title}</h4>
-                                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">{tpl.niche} Architecture</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/5">
-                                    <div>
-                                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1">Potential ROI</p>
-                                        <p className="text-sm font-black text-emerald-400 font-display italic">{tpl.roi}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1">Setup Time</p>
-                                        <p className="text-sm font-black text-white font-display italic">12 min</p>
-                                    </div>
-                                </div>
-                                <NeonButton variant="ghost" className="w-full h-12 bg-white/10 hover:bg-white/20 border-white/20 text-[10px] font-black uppercase tracking-[0.2em] italic text-white shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-                                    DEPLOY TEMPLATE
-                                </NeonButton>
-                            </GlassPanel>
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
-
-            {/* Final Call to Action */}
-            <section className="py-16">
-                <GlassPanel className="p-10 md:p-16 flex flex-col items-center text-center space-y-16 border-purple-500/20 bg-linear-to-b from-purple-500/5 via-black to-transparent relative overflow-hidden rounded-[2.5rem] shadow-xl shadow-purple-500/5">
-                    <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.15)] relative z-10 border border-purple-500/20 mx-auto mb-3">
-                        <RefreshCw className="w-7 h-7 text-purple-400" />
-                    </div>
-
-                    <div className="space-y-10 max-w-3xl relative z-10 flex flex-col items-center">
-                        <h3 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter uppercase leading-none font-display pr-[0.1em]">
-                            COMPOUND YOUR <br />
-                            <span className="text-purple-400 italic">FREEDOM</span>
-                        </h3>
-                        <p className="text-gray-400 text-base md:text-lg leading-relaxed font-medium opacity-80 max-w-xl mx-auto">
-                            Stop trading time for money. Activate our automated wealth streams and watch your capital compound with institutional precision.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full max-w-lg relative z-10 pt-4">
-                        <NeonButton variant="primary" className="h-16 px-12 text-xs font-black uppercase tracking-[0.2em] shadow-xl bg-purple-600 hover:bg-purple-500 flex-1 w-full sm:w-auto">
-                            INITIATE GROWTH
-                        </NeonButton>
-                        <button className="h-16 px-10 rounded-full text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex-1 w-full sm:w-auto backdrop-blur-md bg-white/5">
-                            SPEAK TO ADVISOR
-                        </button>
-                    </div>
-
-                    <div className="pt-12 flex flex-wrap items-center justify-center gap-8 relative z-10 opacity-50">
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                            <span className="text-[9px] uppercase font-black tracking-[0.15em] text-white">Automated Yield</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                            <span className="text-[9px] uppercase font-black tracking-[0.15em] text-white">Risk Optimized</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                            <span className="text-[9px] uppercase font-black tracking-[0.15em] text-white">Passive Scaling</span>
-                        </div>
-                    </div>
-                </GlassPanel>
-            </section>
+        <div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-2">Instant Traffic — Find Articles & Generate Comments</h2>
+          <p className="text-gray-400">High-ranking articles in the <span className="text-primary font-semibold">{trafficNiche || trafficProduct.niche}</span> niche.</p>
         </div>
+
+        {trafficLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <p className="text-gray-400 text-sm animate-pulse">Searching for high-ranking articles...</p>
+          </div>
+        ) : trafficUrls.length === 0 ? (
+          <GlassPanel className="p-12 text-center">
+            <p className="text-gray-400">No articles found. Try again later.</p>
+            <button onClick={() => handleInstantTraffic(trafficProduct)} className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/30 text-primary text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-primary/20 transition-all">
+              <RefreshCw className="w-3.5 h-3.5" /> Retry Search
+            </button>
+          </GlassPanel>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">{trafficUrls.length} articles found</p>
+            {trafficUrls.map((item, urlIndex) => (
+              <GlassPanel key={urlIndex} intensity="low" className="p-5 border-white/5 hover:border-primary/20 transition-all duration-300">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-primary/10 text-primary border border-primary/30">{extractDomain(item.url)}</span>
+                      <div className="flex items-center gap-1"><BarChart3 className="w-3 h-3 text-emerald-400" /><span className="text-[10px] text-emerald-400 font-bold">High Authority</span></div>
+                      <span className="text-[10px] text-gray-600">#{urlIndex + 1}</span>
+                    </div>
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-300 hover:text-primary transition-colors flex items-center gap-2" title={item.url}>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 text-gray-500" /><span className="truncate">{formatUrl(item.url)}</span>
+                    </a>
+                  </div>
+                  {!item.comment && (
+                    <button onClick={() => handleGenerateComment(urlIndex)} disabled={item.isGenerating} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wide bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 hover:border-primary/50 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                      {item.isGenerating ? (<><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>) : (<><MessageSquare className="w-3 h-3" /> Generate Comment</>)}
+                    </button>
+                  )}
+                </div>
+                {item.comment && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 space-y-3">
+                    <div className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{item.comment}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button onClick={() => handleCopyComment(urlIndex)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-400/10 text-xs font-medium text-gray-400 hover:text-emerald-400 border border-white/5 hover:border-emerald-400/30 transition-all">
+                        {item.copied ? (<><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied!</span></>) : (<><Copy className="w-3 h-3" /> Copy to Clipboard</>)}
+                      </button>
+                      <button onClick={() => handleRegenerateComment(urlIndex)} disabled={item.isGenerating} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-gray-400 hover:text-white border border-white/5 hover:border-white/10 transition-all disabled:opacity-50">
+                        <RefreshCw className="w-3 h-3" /> Regenerate
+                      </button>
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-blue-400/10 text-xs font-medium text-gray-400 hover:text-blue-400 border border-white/5 hover:border-blue-400/30 transition-all">
+                        <ExternalLink className="w-3 h-3" /> Open Article
+                      </a>
+                    </div>
+                  </motion.div>
+                )}
+              </GlassPanel>
+            ))}
+          </div>
+        )}
+      </div>
     );
+  }
+
+  /* ─── POSTS VIEW ─── */
+  if (postsProduct) {
+    const nc = NICHE_COLORS[postsProduct.niche] || DEFAULT_NC;
+    return (
+      <div className="space-y-8 pb-20 font-(family-name:--font-display)">
+        <button onClick={() => { setPostsProduct(null); setExpandedPost(null); setPostPlatformFilter("all"); }} className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Products
+        </button>
+
+        <GlassPanel intensity="low" className="p-5 border-primary/10">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{postsProduct.name}</h2>
+              <span className={cn("text-xs font-bold", nc.text)}>{postsProduct.niche} — ${postsProduct.monthlyCommission}/mo recurring</span>
+            </div>
+          </div>
+        </GlassPanel>
+
+        <div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-2">50 Social Media Posts — Ready to Publish</h2>
+          <p className="text-gray-400">AI-generated posts with images for Facebook, Twitter, and Instagram</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {["all", "facebook", "twitter", "instagram"].map((pf) => (
+            <button key={pf} onClick={() => setPostPlatformFilter(pf)} className={cn("px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all", postPlatformFilter === pf ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white")}>
+              {pf === "all" ? "All Platforms" : pf.charAt(0).toUpperCase() + pf.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {posts.slice(0, 50).map((post, index) => {
+            const pc = platformConfig[post.platform];
+            const PlatformIcon = pc.icon;
+            const isExpanded = expandedPost === post.id;
+            const isCopied = copiedPostId === post.id;
+            return (
+              <motion.div key={post.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.02, 0.3) }}>
+                <GlassPanel intensity="low" className="p-0 border-white/5 hover:border-primary/20 transition-all duration-300 overflow-hidden h-full flex flex-col">
+                  <div className="relative">
+                    <LazyPostImage product={postsProduct} postId={post.id} />
+                    <div className={cn("absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border backdrop-blur-sm", pc.bg, pc.color, pc.border)}>
+                      <PlatformIcon className="w-3 h-3" />{pc.label}
+                    </div>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col">
+                    <p className={cn("text-sm text-gray-300 leading-relaxed mb-4 flex-1", !isExpanded && "line-clamp-3")}>{post.text}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button onClick={() => setExpandedPost(isExpanded ? null : post.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                        <Eye className="w-3 h-3" />{isExpanded ? "Less" : "View"}
+                      </button>
+                      <button onClick={() => handleCopyPost(post)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-xs font-medium text-gray-400 hover:text-emerald-400 hover:bg-emerald-400/10 hover:border-emerald-400/20 transition-all">
+                        {isCopied ? (<><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied!</span></>) : (<><Copy className="w-3 h-3" /> Copy Text</>)}
+                      </button>
+                      <a href={getImageUrl(postsProduct, post.id)} download={`${postsProduct.name.replace(/\s+/g, "-").toLowerCase()}-post-${post.id}.jpg`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-xs font-medium text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400/20 transition-all">
+                        <Download className="w-3 h-3" /> Image
+                      </a>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── MAIN VIEW: Top 10 Ranked List ─── */
+  return (
+    <div className="space-y-8 pb-20 font-(family-name:--font-display)">
+      {/* Hero */}
+      <section className="relative">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="p-8 md:p-12 rounded-2xl border border-white/5 bg-linear-to-br from-amber-500/5 via-black/40 to-transparent backdrop-blur-sm text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-6">
+            <Crown className="w-3.5 h-3.5" /> Premium Feature
+          </div>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4">
+            Top 10 Recurring{" "}
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-amber-400 via-yellow-400 to-amber-400">Income Products</span>
+          </h1>
+          <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
+            These products pay you <span className="text-white font-semibold">every month</span> for every customer you refer. Build real recurring wealth.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* Ranked Product List */}
+      <div className="space-y-4">
+        {RECURRING_PRODUCTS.map((product, index) => {
+          const nc = NICHE_COLORS[product.niche] || DEFAULT_NC;
+          const isSynced = syncedIds.has(product.id);
+          const isSyncing = syncingId === product.id;
+
+          return (
+            <motion.div key={product.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
+              <GlassPanel intensity="low" className="p-5 md:p-6 border-white/5 hover:border-amber-500/20 transition-all duration-300">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-5">
+                  {/* Rank + Product Info */}
+                  <div className="flex items-center gap-5 flex-1 min-w-0">
+                    <div className={cn(
+                      "w-12 h-12 rounded-xl flex items-center justify-center font-extrabold text-lg shrink-0",
+                      product.rank <= 3
+                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-400"
+                        : "bg-white/5 border border-white/10 text-gray-500"
+                    )}>
+                      #{product.rank}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-white truncate">{product.name}</h3>
+                      <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border mt-1", nc.text, nc.bg, nc.border)}>
+                        {product.niche}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="bg-black/30 px-4 py-2.5 rounded-lg border border-white/5 text-center min-w-[120px]">
+                      <div className="text-[10px] text-gray-500 uppercase mb-0.5">Monthly Commission</div>
+                      <div className="text-sm font-bold text-primary tabular-nums">${product.monthlyCommission}/mo</div>
+                    </div>
+                    <div className="bg-black/30 px-4 py-2.5 rounded-lg border border-white/5 text-center min-w-[130px]">
+                      <div className="text-[10px] text-gray-500 uppercase mb-0.5">Est. Monthly Revenue</div>
+                      <div className="text-sm font-bold text-green-400 tabular-nums">${product.estMonthlyRevenue.toLocaleString()}/mo</div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button
+                      onClick={() => handleSync(product)}
+                      disabled={isSynced || isSyncing}
+                      className={cn(
+                        "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300",
+                        isSynced
+                          ? "bg-emerald-400/10 border border-emerald-400/30 text-emerald-400 cursor-default"
+                          : isSyncing
+                            ? "bg-white/10 border border-white/20 text-gray-400 cursor-wait"
+                            : "bg-linear-to-r from-primary to-cyan-400 text-black hover:shadow-[0_0_20px_rgba(0,242,255,0.2)]"
+                      )}
+                    >
+                      {isSynced ? (<><CheckCircle className="w-3.5 h-3.5" /> Synced</>) : isSyncing ? (<><Zap className="w-3.5 h-3.5 animate-pulse" /> Syncing...</>) : (<><Rocket className="w-3.5 h-3.5" /> Sync This Product</>)}
+                    </button>
+
+                    <button
+                      onClick={() => isSynced && handleInstantTraffic(product)}
+                      disabled={!isSynced}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all",
+                        isSynced
+                          ? "bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/40"
+                          : "bg-white/[0.02] border-white/5 text-gray-600 cursor-not-allowed opacity-40"
+                      )}
+                      title={!isSynced ? "Sync this product first" : "Find articles & generate comments"}
+                    >
+                      <Zap className="w-3.5 h-3.5" /> Instant Traffic
+                    </button>
+                  </div>
+                </div>
+              </GlassPanel>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
