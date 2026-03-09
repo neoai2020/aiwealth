@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 const NICHE_LIST = [
   "Health & Fitness",
@@ -211,17 +211,8 @@ const NICHE_IMAGE_SUBJECTS: Record<string, string[]> = {
   ],
 };
 
-function buildMarketingPrompt(niche: string, subject: string): string {
-  return [
-    `Ultra-realistic professional photograph for "${niche}" social media marketing`,
-    `Subject: ${subject}`,
-    "Shot on Canon EOS R5 with 85mm f/1.4 lens, shallow depth of field",
-    "Golden hour natural lighting, cinematic color grading",
-    "Magazine-quality composition, visually stunning",
-    "Clean modern aesthetic, aspirational lifestyle feel",
-    "8K detail, sharp focus on subject, beautiful bokeh background",
-    "Absolutely no text, no words, no letters, no logos, no watermarks, no overlays",
-  ].join(". ");
+function buildMarketingPrompt(_niche: string, subject: string): string {
+  return `Professional photo of ${subject}, beautiful lighting, high quality, no text no logos`;
 }
 
 async function generateImage(prompt: string): Promise<Buffer | null> {
@@ -276,9 +267,9 @@ async function tryRapidApi(prompt: string, apiKey: string): Promise<Buffer | nul
 async function tryPollinations(prompt: string): Promise<Buffer | null> {
   try {
     const seed = Math.floor(Math.random() * 999999);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true`;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    const timeout = setTimeout(() => controller.abort(), 180000);
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
