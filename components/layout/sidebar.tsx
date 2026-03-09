@@ -17,7 +17,7 @@ const navItems = [
 ];
 
 const premiumItems = [
-    { name: "Profit Accelerator", href: "/accelerator", icon: Zap },
+    { name: "Accelerator", href: "/accelerator", icon: Zap },
     { name: "Recurring Wealth Streams", href: "/recurring-wealth", icon: RefreshCw },
     { name: "Social Payouts", href: "/social-payouts", icon: Globe },
     { name: "Wealth Protector", href: "/protector", icon: ShieldCheck },

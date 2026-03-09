@@ -281,16 +281,31 @@ const NICHE_IMAGE_SUBJECTS: Record<string, string[]> = {
 function getImageUrl(niche: string, postId: number): string {
   const subjects = NICHE_IMAGE_SUBJECTS[niche] || NICHE_IMAGE_SUBJECTS["Health & Fitness"];
   const subject = subjects[postId % subjects.length];
-  const prompt = `${subject}, no text no words no letters, beautiful photo, engaging social media`;
+  const prompt = [
+    subject,
+    "high engagement social media creative",
+    "scroll stopping composition",
+    "premium lifestyle photography",
+    "emotional visual hook",
+    "vibrant contrast",
+    "professional lighting",
+    "clean subject focus",
+    "instagram winning post",
+    "no text",
+    "no words",
+    "no letters",
+    "no watermark",
+    "square image",
+  ].join(", ");
   const seed = 8000 + postId;
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&seed=${seed}&nologo=true`;
 }
 
-function LazyPostImage({ niche, postId }: { niche: string; postId: number }) {
+function LazyPostImage({ niche, postId, storedUrl }: { niche: string; postId: number; storedUrl?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const el = ref.current;
@@ -303,31 +318,33 @@ function LazyPostImage({ niche, postId }: { niche: string; postId: number }) {
     return () => obs.disconnect();
   }, []);
 
-  const src = isVisible ? getImageUrl(niche, postId) : undefined;
+  useEffect(() => {
+    if (!isVisible) return;
+    setLoaded(false);
+    setImgSrc(storedUrl || getImageUrl(niche, postId));
+  }, [isVisible, storedUrl, niche, postId]);
 
   return (
     <div ref={ref} className="aspect-square bg-black/40 relative overflow-hidden">
-      {(!loaded || !isVisible) && !error && (
+      {(!loaded || !isVisible) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Generating...</span>
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{storedUrl ? "Loading..." : "Generating..."}</span>
         </div>
       )}
-      {error && (
-        <div className="absolute inset-0 bg-linear-to-br from-white/5 via-black/40 to-white/5 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-gray-600">
-            <ImageIcon className="w-8 h-8" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Image Unavailable</span>
-          </div>
-        </div>
-      )}
-      {src && !error && (
+      {imgSrc && (
         <img
-          src={src}
+          src={imgSrc}
           alt={`Social post for ${niche}`}
           className={cn("absolute inset-0 w-full h-full object-cover transition-opacity duration-500", loaded ? "opacity-100" : "opacity-0")}
           onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
+          onError={() => {
+            const fallbackUrl = getImageUrl(niche, postId + 10000);
+            if (imgSrc !== fallbackUrl) {
+              setLoaded(false);
+              setImgSrc(fallbackUrl);
+            }
+          }}
         />
       )}
     </div>
@@ -965,6 +982,7 @@ function generateNichePosts(niche: string): NichePost[] {
 
 export default function SocialPayoutsPage() {
   const { user } = useAuth();
+  const TOTAL_POSTS = NICHE_LIST.length * 50;
 
   const [syncedPages, setSyncedPages] = useState<SyncedPage[]>([]);
   const [loadingPages, setLoadingPages] = useState(true);
@@ -974,6 +992,10 @@ export default function SocialPayoutsPage() {
   const [productModalPostId, setProductModalPostId] = useState<number | null>(null);
   const [linkedProducts, setLinkedProducts] = useState<Record<number, SyncedPage>>({});
   const [copiedPostId, setCopiedPostId] = useState<number | null>(null);
+
+  const [storedImages, setStoredImages] = useState<Record<string, Record<number, string>>>({});
+  const [seedingStatus, setSeedingStatus] = useState<string | null>(null);
+  const [seedingInProgress, setSeedingInProgress] = useState(false);
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -993,6 +1015,69 @@ export default function SocialPayoutsPage() {
     };
     fetchPages();
   }, [user]);
+
+  const refreshStoredImages = async () => {
+    const res = await fetch("/api/seed-post-images", { cache: "no-store" });
+    const data = await res.json();
+    if (data.success && data.images) {
+      setStoredImages(data.images);
+      return data.total || 0;
+    }
+    return 0;
+  };
+
+  const triggerSeeding = async () => {
+    if (seedingInProgress) return;
+
+    setSeedingInProgress(true);
+    try {
+      let total = await refreshStoredImages();
+      let attempts = 0;
+
+      while (total < TOTAL_POSTS && attempts < 40) {
+        setSeedingStatus(`Generating and saving images... ${total}/${TOTAL_POSTS}`);
+
+        await fetch("/api/seed-post-images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fill_missing: true, batch_size: 20 }),
+        });
+
+        total = await refreshStoredImages();
+        attempts += 1;
+      }
+
+      setSeedingStatus(
+        total >= TOTAL_POSTS
+          ? `All ${TOTAL_POSTS} images are generated and saved`
+          : `Saved ${total}/${TOTAL_POSTS} images so far`
+      );
+
+      setTimeout(() => setSeedingStatus(null), 4000);
+    } catch {
+      setSeedingStatus("Some images are still generating in the background");
+    } finally {
+      setSeedingInProgress(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchStoredImages = async () => {
+      try {
+        const total = await refreshStoredImages();
+        if (total < TOTAL_POSTS) {
+          triggerSeeding();
+        }
+      } catch {
+        triggerSeeding();
+      }
+    };
+    fetchStoredImages();
+  }, []);
+
+  const getStoredImageUrl = (niche: string, postIndex: number): string | undefined => {
+    return storedImages[niche]?.[postIndex];
+  };
 
   const posts = useMemo(() => generateNichePosts(selectedNiche), [selectedNiche]);
 
@@ -1027,6 +1112,14 @@ export default function SocialPayoutsPage() {
           50 proven-to-work social media posts for every niche — ready for Facebook, Instagram, Twitter & more. Add your affiliate link, then copy the post or download the image.
         </p>
       </motion.div>
+
+      {/* Seeding Status */}
+      {seedingStatus && (
+        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary/5 border border-primary/10">
+          <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+          <span className="text-xs text-primary font-medium">{seedingStatus} This runs once in the background.</span>
+        </div>
+      )}
 
       {/* Niche Selector Grid */}
       <div>
@@ -1086,7 +1179,7 @@ export default function SocialPayoutsPage() {
               >
                 {/* AI Image */}
                 <div className="relative">
-                  <LazyPostImage niche={post.niche} postId={post.id} />
+                  <LazyPostImage niche={post.niche} postId={post.id} storedUrl={getStoredImageUrl(post.niche, post.id - (NICHE_LIST.indexOf(post.niche as typeof NICHE_LIST[number]) * 50) - 1)} />
                   <div className={cn("absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border backdrop-blur-sm", nc.text, nc.bg, nc.border)}>
                     {post.niche}
                   </div>
@@ -1126,7 +1219,7 @@ export default function SocialPayoutsPage() {
                       </button>
 
                       <a
-                        href={linked ? getImageUrl(post.niche, post.id) : undefined}
+                        href={linked ? (getStoredImageUrl(post.niche, post.id - (NICHE_LIST.indexOf(post.niche as typeof NICHE_LIST[number]) * 50) - 1) || getImageUrl(post.niche, post.id)) : undefined}
                         download={linked ? `social-post-${post.id}.jpg` : undefined}
                         target={linked ? "_blank" : undefined}
                         rel="noopener noreferrer"

@@ -1,0 +1,3 @@
+Update dashboard flows and social payout image seeding
+
+Sync the latest dashboard changes together so social payouts can persist generated images while the updated product flows stay aligned.
