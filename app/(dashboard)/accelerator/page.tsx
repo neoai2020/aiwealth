@@ -11,7 +11,6 @@ import {
   Rocket,
   ExternalLink,
   X,
-  Copy,
   Check,
   CheckCircle,
   Loader2,
@@ -53,14 +52,6 @@ function SyncPopup({
   const { user } = useAuth();
   const [promoLink, setPromoLink] = useState("");
   const [syncing, setSyncing] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [step, setStep] = useState(1);
-
-  const handleCopyName = () => {
-    navigator.clipboard.writeText(page.pageName);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleSync = async () => {
     if (!user || !promoLink.trim()) return;
@@ -102,32 +93,25 @@ function SyncPopup({
 
           <div className="space-y-4">
             {/* Step 1 */}
-            <div className={cn("p-4 rounded-xl border transition-all", step >= 1 ? "bg-primary/5 border-primary/20" : "bg-white/[0.02] border-white/5")}>
+            <div className="p-4 rounded-xl border transition-all bg-primary/5 border-primary/20">
               <div className="flex items-center gap-3 mb-2">
-                <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step > 1 ? "bg-emerald-500/20 text-emerald-400" : "bg-primary/20 text-primary")}>
-                  {step > 1 ? <Check className="w-4 h-4" /> : "1"}
-                </div>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-primary/20 text-primary">1</div>
                 <span className="text-sm font-bold text-white">Find a matching product on Digistore24</span>
               </div>
               <div className="ml-10 space-y-2">
                 <p className="text-xs text-gray-400 leading-relaxed">
                   Recommended products for this page: <span className="text-gray-300 font-medium">{page.recommendedProducts.join(", ")}</span>
                 </p>
-                <div className="flex items-center gap-2">
-                  <a href="https://www.digistore24.com/marketplace" target="_blank" rel="noopener noreferrer" onClick={() => setStep(Math.max(step, 2))} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                    <Search className="w-3 h-3" /> Open Digistore24 <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <button onClick={() => { handleCopyName(); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-xs font-bold text-primary hover:bg-primary/20 transition-all shrink-0">
-                    {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy Page Name</>}
-                  </button>
-                </div>
+                <a href="https://www.digistore24-app.com/app/en/affiliate/account/marketplace/all" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+                  <Search className="w-3 h-3" /> Open Digistore24 <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
 
             {/* Step 2 */}
-            <div className={cn("p-4 rounded-xl border transition-all", step >= 2 ? "bg-primary/5 border-primary/20" : "bg-white/[0.02] border-white/5 opacity-50")}>
+            <div className="p-4 rounded-xl border transition-all bg-primary/5 border-primary/20">
               <div className="flex items-center gap-3 mb-2">
-                <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", promoLink.trim() ? "bg-emerald-500/20 text-emerald-400" : step >= 2 ? "bg-primary/20 text-primary" : "bg-white/10 text-gray-500")}>
+                <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", promoLink.trim() ? "bg-emerald-500/20 text-emerald-400" : "bg-primary/20 text-primary")}>
                   {promoLink.trim() ? <Check className="w-4 h-4" /> : "2"}
                 </div>
                 <span className="text-sm font-bold text-white">Paste your promo link</span>
@@ -141,7 +125,6 @@ function SyncPopup({
                     onChange={(e) => setPromoLink(e.target.value)}
                     placeholder="https://www.digistore24.com/redir/..."
                     className="w-full pl-10 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/40 transition-colors"
-                    disabled={step < 2}
                   />
                 </div>
               </div>
