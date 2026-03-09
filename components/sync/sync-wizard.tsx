@@ -18,6 +18,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
+import { generateNicheImage, isPlaceholderImage } from "@/lib/generate-image";
 import Link from "next/link";
 
 interface SyncResult {
@@ -74,13 +75,18 @@ export function SyncWizard() {
       const safeTitle = title.substring(0, 255);
       const safeDescription = (data?.description || "").substring(0, 1000);
 
+      const scrapedImage = data?.image;
+      const imageUrl = isPlaceholderImage(scrapedImage)
+        ? generateNicheImage(safeTitle)
+        : scrapedImage;
+
       const { data: initialData, error: initialError } = await supabase
         .from("bridges")
         .insert({
           user_id: user.id,
           title: safeTitle,
           description: safeDescription,
-          image_url: data?.image || null,
+          image_url: imageUrl,
           affiliate_url: url,
           status: "indexing",
         })
@@ -105,9 +111,7 @@ export function SyncWizard() {
         const aiContent = aiResult.data;
         detectedNiche = aiContent.product_niche || "General Interests";
 
-        await supabase
-          .from("bridges")
-          .update({
+        const updatePayload: Record<string, any> = {
             content: aiContent,
             description: (aiContent.summary || safeDescription).substring(
               0,
@@ -117,7 +121,15 @@ export function SyncWizard() {
             status: "live",
             traffic: "0",
             earnings: "$0.00",
-          })
+        };
+
+        if (isPlaceholderImage(scrapedImage)) {
+          updatePayload.image_url = generateNicheImage(safeTitle, detectedNiche);
+        }
+
+        await supabase
+          .from("bridges")
+          .update(updatePayload)
           .eq("id", newBridgeId);
       } else {
         await supabase

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateNicheImage } from '@/lib/generate-image';
 
 // Explicitly tell Vercel this is a serverless function
 export const runtime = 'nodejs';
@@ -50,12 +51,13 @@ export async function POST(request: NextRequest) {
             } catch (error) {
                 console.error("Local scraping failed:", error);
                 // Final Fallback if everything fails
+                const fallbackTitle = `Bridge - ${new URL(url).hostname}`;
                 return NextResponse.json({
                     success: true,
                     data: {
-                        title: `Bridge - ${new URL(url).hostname}`,
+                        title: fallbackTitle,
                         description: "Could not scrape content securely. Please verify the URL or try manually entering details.",
-                        image: "https://placehold.co/600x400/1e293b/ffffff?text=No+Preview+Available"
+                        image: generateNicheImage(fallbackTitle)
                     }
                 });
             }
@@ -143,9 +145,8 @@ export async function POST(request: NextRequest) {
 
         // Final fallback image if extraction completely fails but page load succeeded
         if (!image || image.length < 5) {
-            // Try to find any img tag with a reasonable size
             const anyImgMatch = html.match(/<img[^>]*src=["']([^"']*(?:\.jpg|\.png|\.webp)[^"']*)["'][^>]*>/i);
-            image = anyImgMatch ? anyImgMatch[1] : `https://placehold.co/1200x800/10b981/ffffff?text=${encodeURIComponent(title || 'Product Preview')}`;
+            image = anyImgMatch ? anyImgMatch[1] : generateNicheImage(title || 'Product Preview');
         }
 
         // Handle relative URLs for images

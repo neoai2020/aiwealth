@@ -1,5 +1,6 @@
 import { supabase as publicSupabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
+import { generateNicheImage, isPlaceholderImage } from "@/lib/generate-image";
 import { ShieldCheck, User, Clock, ArrowRight, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,12 +34,14 @@ export default async function ReviewPage({ params, searchParams }: ReviewPagePro
     // Handle "Preview Mode" or "Demo" mocks
     // Also handle IDs '1' and '2' which are often used as dashboard placeholders
     if (id === 'PREVIEW-MODE' || id === 'demo' || id === 'preview' || id === '1' || id === '2') {
+        const previewTitle = (sp.title as string) || (id === '1' ? "EcoSlate Roofing Offers" : (id === '2' ? "Crypto Wealth Masterclass" : "Product Title Preview"));
+        const previewImage = (sp.image as string) || null;
         reviewData = {
-            title: (sp.title as string) || (id === '1' ? "EcoSlate Roofing Offers" : (id === '2' ? "Crypto Wealth Masterclass" : "Product Title Preview")),
+            title: previewTitle,
             description: (sp.description as string) || "This is a preview of how your product review page will look. Once you save the bridge, the actual content scraped from your URL will appear here.",
-            image_url: (sp.image as string) || "https://placehold.co/600x400/10b981/ffffff?text=Product+Preview",
+            image_url: isPlaceholderImage(previewImage) ? generateNicheImage(previewTitle) : previewImage,
             affiliate_url: (sp.url as string) || "#",
-            content: null // No dynamic content for previews unless we generate it on the fly (complex)
+            content: null
         };
     } else {
         // Fetch the bridge data from Supabase
@@ -69,7 +72,12 @@ export default async function ReviewPage({ params, searchParams }: ReviewPagePro
         }
     }
 
-    const { title, description, image_url, affiliate_url } = reviewData;
+    const { title, description, affiliate_url } = reviewData;
+    const niche = (reviewData as any).niche || null;
+    const rawImageUrl = (reviewData as any).image_url;
+    const image_url = isPlaceholderImage(rawImageUrl)
+        ? generateNicheImage(title || "Premium Product", niche)
+        : rawImageUrl;
     const bridgeContent = (reviewData as any).content || {};
 
     // --- Editorial Content Generators ---
@@ -123,34 +131,22 @@ export default async function ReviewPage({ params, searchParams }: ReviewPagePro
                         <div className="relative bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl transition-transform duration-300">
                             {/* Image Container with Dynamic Blur Background */}
                             <div className="relative aspect-4/3 w-full bg-slate-900 flex items-center justify-center overflow-hidden">
-                                {image_url && (
-                                    <>
-                                        {/* Blurred Background Layer */}
-                                        <div
-                                            className="absolute inset-0 bg-cover bg-center opacity-60 blur-3xl scale-125 saturate-150 pointer-events-none"
-                                            style={{ backgroundImage: `url(${image_url})` }}
-                                        />
-                                        {/* Gradient Overlay */}
-                                        <div className="absolute inset-0 bg-black/20" />
-                                    </>
-                                )}
+                                <>
+                                    {/* Blurred Background Layer */}
+                                    <div
+                                        className="absolute inset-0 bg-cover bg-center opacity-60 blur-3xl scale-125 saturate-150 pointer-events-none"
+                                        style={{ backgroundImage: `url(${image_url})` }}
+                                    />
+                                    {/* Gradient Overlay */}
+                                    <div className="absolute inset-0 bg-black/20" />
+                                </>
 
                                 {/* Main Image */}
-                                {image_url ? (
-                                    <SmartImage
-                                        src={image_url}
-                                        alt={title || "Product Image"}
-                                        className="relative z-10 object-contain max-h-[85%] max-w-[85%] drop-shadow-2xl transition-transform duration-500 group-hover:scale-105"
-                                    />
-                                ) : (
-                                    <div className="relative z-10 flex flex-col items-center justify-center p-12 text-center">
-                                        <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6 animate-pulse">
-                                            <Star className="w-10 h-10 text-emerald-500/50" />
-                                        </div>
-                                        <p className="font-bold text-white text-xl mb-2">Analyzing Product Visuals</p>
-                                        <p className="text-white/40 text-sm max-w-[280px]">Our AI is currently processing the best representation for this offer.</p>
-                                    </div>
-                                )}
+                                <SmartImage
+                                    src={image_url}
+                                    alt={title || "Product Image"}
+                                    className="relative z-10 object-contain max-h-[85%] max-w-[85%] drop-shadow-2xl transition-transform duration-500 group-hover:scale-105"
+                                />
 
                                 {/* Live Badge */}
                                 <div className="absolute top-6 right-6 z-20 bg-red-600/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-500/50 flex items-center gap-2">
@@ -294,18 +290,12 @@ export default async function ReviewPage({ params, searchParams }: ReviewPagePro
 
                 {/* 3. Featured Image (Repeated for editorial flow) */}
                 <div className="mb-16 relative group rounded-2xl overflow-hidden shadow-2xl shadow-slate-200 border border-slate-100">
-                    {image_url ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                            src={image_url}
-                            alt={title}
-                            className="w-full h-auto object-cover transform hover:scale-105 transition-transform duration-700 max-h-[600px]"
-                        />
-                    ) : (
-                        <div className="w-full aspect-video bg-slate-100 flex items-center justify-center text-slate-400">
-                            No Featured Image
-                        </div>
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={image_url}
+                        alt={title}
+                        className="w-full h-auto object-cover transform hover:scale-105 transition-transform duration-700 max-h-[600px]"
+                    />
                 </div>
 
                 {/* 4. Article Body (Dynamic Sections) */}

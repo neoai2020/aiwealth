@@ -6,6 +6,7 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
+import { generateNicheImage, isPlaceholderImage } from "@/lib/generate-image";
 import {
   RefreshCw,
   Rocket,
@@ -302,10 +303,14 @@ function SyncPopup({
           body: JSON.stringify({ url: product.productUrl }),
         });
         const result = await res.json();
-        if (result.success && result.data?.image) {
+        if (result.success && result.data?.image && !isPlaceholderImage(result.data.image)) {
           imageUrl = result.data.image;
         }
       } catch {}
+
+      if (!imageUrl) {
+        imageUrl = generateNicheImage(product.name, product.niche);
+      }
 
       const { error } = await supabase.from("bridges").insert({
         user_id: user.id,
