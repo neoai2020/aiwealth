@@ -29,6 +29,12 @@ const trainingVideos = [
         description: "Step-by-step guide to syncing new products and setting up your affiliate links.",
         vimeoId: "1171450956",
     },
+    {
+        id: "5",
+        title: "Premium Feature 1 : Accelerator",
+        description: "Learn how to use the Accelerator — 50 done-for-you landing pages across 5 niches to fast-track your earnings.",
+        vimeoId: "1171736991",
+    },
 ];
 
 export default function TrainingPage() {

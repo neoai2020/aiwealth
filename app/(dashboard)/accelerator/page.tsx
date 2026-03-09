@@ -19,6 +19,7 @@ import {
   Sparkles,
   Palette,
   Lightbulb,
+  PlayCircle,
 } from "lucide-react";
 
 /* ─── 5 Niches ─── */
@@ -175,6 +176,27 @@ export default function AcceleratorPage() {
         <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
           50 done-for-you landing pages across 5 niches — each with a unique design angle and conversion strategy. Check the page, find a matching product, and sync it with your affiliate link.
         </p>
+      </motion.div>
+
+      {/* How to Use Video */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+        <GlassPanel intensity="low" className="overflow-hidden border-white/5">
+          <div className="p-5 pb-3 flex items-center gap-2">
+            <PlayCircle className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold text-white">How to Use the Accelerator</h2>
+          </div>
+          <div className="px-5 pb-5">
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black/80">
+              <iframe
+                src="https://player.vimeo.com/video/1171736991?autoplay=0&title=0&byline=0&portrait=0"
+                title="How to Use the Accelerator"
+                className="absolute inset-0 w-full h-full"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* Niche Tabs */}
