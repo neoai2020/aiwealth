@@ -211,35 +211,47 @@ const NICHE_IMAGE_SUBJECTS: Record<string, string[]> = {
   ],
 };
 
-function getPollinationsUrl(subject: string, seed: number): string {
-  const prompt = [
-    subject,
-    "high engagement social media creative",
-    "scroll stopping composition",
-    "premium lifestyle photography",
-    "emotional visual hook",
-    "vibrant contrast",
-    "clean subject focus",
-    "professional lighting",
-    "instagram winning post",
-    "no text",
-    "no words",
-    "no letters",
-    "no watermark",
-    "square image",
-  ].join(", ");
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&seed=${seed}&nologo=true`;
+function buildMarketingPrompt(niche: string, subject: string): string {
+  return [
+    `Create a premium square social media image for the niche "${niche}"`,
+    `Main visual subject: ${subject}`,
+    "High-end commercial photography quality",
+    "Scroll-stopping composition optimized for engagement",
+    "Strong focal point with premium lighting and rich detail",
+    "Modern lifestyle marketing aesthetic with clean composition",
+    "No text, no words, no letters, no logos, no watermark",
+    "Suitable for a polished affiliate marketing social post",
+  ].join(". ");
 }
 
-async function downloadImage(url: string): Promise<Buffer | null> {
+async function generateOpenAIImage(prompt: string): Promise<Buffer | null> {
   try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+        prompt,
+        size: "1024x1024",
+        quality: "high",
+        output_format: "jpeg",
+        output_compression: 90,
+      }),
+    });
     clearTimeout(timeout);
     if (!res.ok) return null;
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const data = await res.json();
+    const b64 = data?.data?.[0]?.b64_json;
+    return b64 ? Buffer.from(b64, "base64") : null;
   } catch {
     return null;
   }
@@ -250,7 +262,8 @@ function getFilePath(niche: string, postIndex: number): string {
 }
 
 async function persistImage(
-  supabase: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   niche: string,
   postIndex: number,
   imageBuffer: Buffer
@@ -268,13 +281,33 @@ async function persistImage(
 
   const imageUrl = publicUrlData.publicUrl;
 
-  const { error: insertError } = await supabase.from("social_post_images").insert({
-    niche,
-    post_index: postIndex,
-    image_url: imageUrl,
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing, error: existingError } = await (supabase.from as any)("social_post_images")
+    .select("id")
+    .eq("niche", niche)
+    .eq("post_index", postIndex)
+    .maybeSingle();
 
-  if (insertError) return null;
+  if (existingError) return null;
+
+  if (existing?.id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateError } = await (supabase.from as any)("social_post_images")
+      .update({ image_url: imageUrl, updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
+
+    if (updateError) return null;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insertError } = await (supabase.from as any)("social_post_images").insert({
+      niche,
+      post_index: postIndex,
+      image_url: imageUrl,
+    });
+
+    if (insertError) return null;
+  }
+
   return imageUrl;
 }
 
@@ -295,6 +328,14 @@ export async function POST(request: NextRequest) {
     const batchSize = body.batch_size || 5;
     const startIndex = body.start_index || 0;
     const fillMissing = Boolean(body.fill_missing);
+    const overwriteExisting = Boolean(body.overwrite_existing);
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: "OPENAI_API_KEY is required for image generation" },
+        { status: 500 }
+      );
+    }
 
     const results: { niche: string; generated: number; failed: number; skipped: number }[] = [];
 
@@ -306,8 +347,8 @@ export async function POST(request: NextRequest) {
       let failed = 0;
       let skipped = 0;
 
-      const { data: existingRows, error: existingError } = await supabase
-        .from("social_post_images")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingRows, error: existingError } = await (supabase.from as any)("social_post_images")
         .select("post_index")
         .eq("niche", niche);
 
@@ -316,8 +357,11 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const existingIndexes = new Set((existingRows || []).map((row) => row.post_index));
-      const candidateIndexes = fillMissing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existingIndexes = new Set((existingRows || []).map((row: any) => row.post_index));
+      const candidateIndexes = overwriteExisting
+        ? subjects.slice(startIndex, Math.min(startIndex + batchSize, subjects.length)).map((_, offset) => startIndex + offset)
+        : fillMissing
         ? subjects.map((_, idx) => idx).filter((idx) => !existingIndexes.has(idx)).slice(0, batchSize)
         : Array.from(
             { length: Math.max(0, Math.min(startIndex + batchSize, subjects.length) - startIndex) },
@@ -328,33 +372,20 @@ export async function POST(request: NextRequest) {
         const nicheIdx = NICHE_LIST.indexOf(niche);
         const postId = nicheIdx * 50 + i + 1;
 
-        if (!fillMissing && existingIndexes.has(i)) {
+        if (!fillMissing && !overwriteExisting && existingIndexes.has(i)) {
           skipped++;
           continue;
         }
 
         const subject = subjects[i];
-        const seed = 8000 + postId;
-        const pollinationsUrl = getPollinationsUrl(subject, seed);
-
-        const imageBuffer = await downloadImage(pollinationsUrl);
-        if (imageBuffer) {
-          const savedUrl = await persistImage(supabase, niche, i, imageBuffer);
-          if (savedUrl) {
-            generated++;
-            continue;
-          }
-        }
-
-        const altSeed = 9000 + postId;
-        const altUrl = getPollinationsUrl(subject, altSeed);
-        const altBuffer = await downloadImage(altUrl);
-        if (!altBuffer) {
+        const prompt = buildMarketingPrompt(niche, subject);
+        const imageBuffer = await generateOpenAIImage(prompt);
+        if (!imageBuffer) {
           failed++;
           continue;
         }
 
-        const savedAltUrl = await persistImage(supabase, niche, i, altBuffer);
+        const savedAltUrl = await persistImage(supabase, niche, i, imageBuffer);
         if (!savedAltUrl) {
           failed++;
           continue;
@@ -369,7 +400,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       results,
-      message: fillMissing
+      message: overwriteExisting
+        ? `Regenerated up to ${batchSize} images per niche`
+        : fillMissing
         ? `Processed up to ${batchSize} missing images per niche`
         : `Processed batch starting at index ${startIndex} with size ${batchSize}`,
       next_start_index: fillMissing ? null : startIndex + batchSize < 50 ? startIndex + batchSize : null,
@@ -390,8 +423,8 @@ export async function GET() {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data, error } = await supabase
-      .from("social_post_images")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)("social_post_images")
       .select("niche, post_index, image_url")
       .order("niche")
       .order("post_index");
@@ -401,7 +434,8 @@ export async function GET() {
     }
 
     const byNiche: Record<string, Record<number, string>> = {};
-    for (const row of data || []) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const row of (data || []) as any[]) {
       if (!byNiche[row.niche]) byNiche[row.niche] = {};
       byNiche[row.niche][row.post_index] = row.image_url;
     }
