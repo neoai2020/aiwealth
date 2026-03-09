@@ -433,22 +433,25 @@ export async function POST(request: NextRequest) {
         return true;
       });
 
-      const CONCURRENCY = 3;
-      for (let c = 0; c < toProcess.length; c += CONCURRENCY) {
-        const chunk = toProcess.slice(c, c + CONCURRENCY);
-        const results_chunk = await Promise.allSettled(
-          chunk.map(async (i) => {
-            const subject = subjects[i];
-            const prompt = buildMarketingPrompt(niche, subject);
-            const imageBuffer = await generateImage(prompt);
-            if (!imageBuffer) return false;
-            const savedUrl = await persistImage(supabase, niche, i, imageBuffer);
-            return !!savedUrl;
-          })
-        );
-        for (const r of results_chunk) {
-          if (r.status === "fulfilled" && r.value) generated++;
-          else failed++;
+      for (const i of toProcess) {
+        const subject = subjects[i];
+        const prompt = buildMarketingPrompt(niche, subject);
+        let imageBuffer: Buffer | null = null;
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+          imageBuffer = await generateImage(prompt);
+          if (imageBuffer) break;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+
+        if (!imageBuffer) { failed++; continue; }
+
+        const savedUrl = await persistImage(supabase, niche, i, imageBuffer);
+        if (savedUrl) generated++;
+        else failed++;
+
+        if (toProcess.indexOf(i) < toProcess.length - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
         }
       }
 
