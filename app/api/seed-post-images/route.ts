@@ -213,36 +213,38 @@ const NICHE_IMAGE_SUBJECTS: Record<string, string[]> = {
 
 function buildMarketingPrompt(niche: string, subject: string): string {
   return [
-    `Create a premium square social media image for the niche "${niche}"`,
-    `Main visual subject: ${subject}`,
-    "High-end commercial photography quality",
-    "Scroll-stopping composition optimized for engagement",
-    "Strong focal point with premium lighting and rich detail",
-    "Modern lifestyle marketing aesthetic with clean composition",
-    "No text, no words, no letters, no logos, no watermark",
-    "Suitable for a polished affiliate marketing social post",
+    `Ultra-realistic professional photograph for "${niche}" social media marketing`,
+    `Subject: ${subject}`,
+    "Shot on Canon EOS R5 with 85mm f/1.4 lens, shallow depth of field",
+    "Golden hour natural lighting, cinematic color grading",
+    "Magazine-quality composition, visually stunning",
+    "Clean modern aesthetic, aspirational lifestyle feel",
+    "8K detail, sharp focus on subject, beautiful bokeh background",
+    "Absolutely no text, no words, no letters, no logos, no watermarks, no overlays",
   ].join(". ");
 }
 
-async function generateRapidApiImage(prompt: string): Promise<Buffer | null> {
-  try {
-    const apiKey = process.env.RAPIDAPI_KEY;
-    if (!apiKey) {
-      console.error("[seed] RAPIDAPI_KEY not set");
-      return null;
-    }
+async function generateImage(prompt: string): Promise<Buffer | null> {
+  const rapidKey = process.env.RAPIDAPI_KEY;
+  if (rapidKey) {
+    const buf = await tryRapidApi(prompt, rapidKey);
+    if (buf) return buf;
+    console.log("[seed] RapidAPI failed, falling back to Pollinations");
+  }
+  return tryPollinations(prompt);
+}
 
+async function tryRapidApi(prompt: string, apiKey: string): Promise<Buffer | null> {
+  try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
+    const apiHost = process.env.RAPIDAPI_HOST || "google-nano-banana4.p.rapidapi.com";
     const body = new URLSearchParams({
       prompt,
       aspect_ratio: "1:1",
       resolution: "1K",
       model: process.env.RAPIDAPI_NANO_MODEL || "google/nano-banana-2",
     });
-
-    const apiHost = process.env.RAPIDAPI_HOST || "google-nano-banana4.p.rapidapi.com";
-    console.log("[seed] Calling RapidAPI", apiHost, "prompt length:", prompt.length);
 
     const res = await fetch(`https://${apiHost}/index.php`, {
       method: "POST",
@@ -255,35 +257,53 @@ async function generateRapidApiImage(prompt: string): Promise<Buffer | null> {
       body: body.toString(),
     });
     clearTimeout(timeout);
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.error("[seed] RapidAPI error", res.status, errText.slice(0, 300));
-      return null;
-    }
+    if (!res.ok) return null;
 
     const raw = await res.text();
-    console.log("[seed] RapidAPI response length:", raw.length, "preview:", raw.slice(0, 200));
-
-    let data: Record<string, unknown>;
     try {
-      data = JSON.parse(raw);
+      const data = JSON.parse(raw);
+      if (data?.status === "error") return null;
+      const b64 = data?.image_base64 || data?.data?.[0]?.b64_json || data?.image || data?.output;
+      return b64 ? Buffer.from(b64 as string, "base64") : null;
     } catch {
-      if (raw.length > 1000) {
-        console.log("[seed] Response is not JSON, treating as raw base64");
-        return Buffer.from(raw, "base64");
-      }
-      console.error("[seed] Cannot parse response");
+      return raw.length > 1000 ? Buffer.from(raw, "base64") : null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function tryPollinations(prompt: string): Promise<Buffer | null> {
+  try {
+    const seed = Math.floor(Math.random() * 999999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      console.error("[seed] Pollinations error", res.status);
       return null;
     }
 
-    const b64 = (data?.image_base64 || data?.data?.[0]?.b64_json || data?.image || data?.output) as string | undefined;
-    if (b64) return Buffer.from(b64, "base64");
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("image")) {
+      console.error("[seed] Pollinations returned non-image:", contentType);
+      return null;
+    }
 
-    console.error("[seed] No image field found. Keys:", Object.keys(data));
-    return null;
+    const arrayBuf = await res.arrayBuffer();
+    const buf = Buffer.from(arrayBuf);
+    if (buf.length < 5000) {
+      console.error("[seed] Pollinations image too small:", buf.length);
+      return null;
+    }
+    console.log("[seed] Pollinations OK, size:", buf.length);
+    return buf;
   } catch (err) {
-    console.error("[seed] generateRapidApiImage error:", err);
+    console.error("[seed] Pollinations error:", err);
     return null;
   }
 }
@@ -300,9 +320,11 @@ async function persistImage(
   imageBuffer: Buffer
 ): Promise<string | null> {
   const filePath = getFilePath(niche, postIndex);
+  const isPng = imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50;
+  const contentType = isPng ? "image/png" : "image/jpeg";
   const { error: uploadError } = await supabase.storage
     .from("social-posts")
-    .upload(filePath, imageBuffer, { contentType: "image/jpeg", upsert: true });
+    .upload(filePath, imageBuffer, { contentType, upsert: true });
 
   if (uploadError) return null;
 
@@ -361,21 +383,14 @@ export async function POST(request: NextRequest) {
     const fillMissing = Boolean(body.fill_missing);
     const overwriteExisting = Boolean(body.overwrite_existing);
 
-    if (!process.env.RAPIDAPI_KEY) {
-      return NextResponse.json(
-        { success: false, error: "RAPIDAPI_KEY is required for image generation" },
-        { status: 500 }
-      );
-    }
-
     if (body.debug_test) {
       const testPrompt = buildMarketingPrompt("Health & Fitness", "yoga sunrise beach");
-      const buf = await generateRapidApiImage(testPrompt);
+      const buf = await generateImage(testPrompt);
       return NextResponse.json({
         success: !!buf,
         buffer_size: buf?.length ?? 0,
-        rapidapi_host: process.env.RAPIDAPI_HOST || "(default)",
-        has_key: !!process.env.RAPIDAPI_KEY,
+        has_rapidapi: !!process.env.RAPIDAPI_KEY,
+        provider: process.env.RAPIDAPI_KEY ? "rapidapi+pollinations" : "pollinations",
       });
     }
 
@@ -421,7 +436,7 @@ export async function POST(request: NextRequest) {
 
         const subject = subjects[i];
         const prompt = buildMarketingPrompt(niche, subject);
-        const imageBuffer = await generateRapidApiImage(prompt);
+        const imageBuffer = await generateImage(prompt);
         if (!imageBuffer) {
           failed++;
           continue;
