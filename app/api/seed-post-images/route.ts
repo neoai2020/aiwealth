@@ -227,10 +227,13 @@ function buildMarketingPrompt(niche: string, subject: string): string {
 async function generateRapidApiImage(prompt: string): Promise<Buffer | null> {
   try {
     const apiKey = process.env.RAPIDAPI_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+      console.error("[seed] RAPIDAPI_KEY not set");
+      return null;
+    }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 60000);
     const body = new URLSearchParams({
       prompt,
       aspect_ratio: "1:1",
@@ -238,22 +241,49 @@ async function generateRapidApiImage(prompt: string): Promise<Buffer | null> {
       model: process.env.RAPIDAPI_NANO_MODEL || "google/nano-banana-2",
     });
 
-    const res = await fetch("https://google-nano-banana4.p.rapidapi.com/index.php", {
+    const apiHost = process.env.RAPIDAPI_HOST || "google-nano-banana4.p.rapidapi.com";
+    console.log("[seed] Calling RapidAPI", apiHost, "prompt length:", prompt.length);
+
+    const res = await fetch(`https://${apiHost}/index.php`, {
       method: "POST",
       signal: controller.signal,
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": process.env.RAPIDAPI_HOST || "google-nano-banana4.p.rapidapi.com",
+        "x-rapidapi-host": apiHost,
       },
       body: body.toString(),
     });
     clearTimeout(timeout);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const b64 = data?.image_base64 || data?.data?.[0]?.b64_json;
-    return b64 ? Buffer.from(b64, "base64") : null;
-  } catch {
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("[seed] RapidAPI error", res.status, errText.slice(0, 300));
+      return null;
+    }
+
+    const raw = await res.text();
+    console.log("[seed] RapidAPI response length:", raw.length, "preview:", raw.slice(0, 200));
+
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      if (raw.length > 1000) {
+        console.log("[seed] Response is not JSON, treating as raw base64");
+        return Buffer.from(raw, "base64");
+      }
+      console.error("[seed] Cannot parse response");
+      return null;
+    }
+
+    const b64 = (data?.image_base64 || data?.data?.[0]?.b64_json || data?.image || data?.output) as string | undefined;
+    if (b64) return Buffer.from(b64, "base64");
+
+    console.error("[seed] No image field found. Keys:", Object.keys(data));
+    return null;
+  } catch (err) {
+    console.error("[seed] generateRapidApiImage error:", err);
     return null;
   }
 }
@@ -336,6 +366,17 @@ export async function POST(request: NextRequest) {
         { success: false, error: "RAPIDAPI_KEY is required for image generation" },
         { status: 500 }
       );
+    }
+
+    if (body.debug_test) {
+      const testPrompt = buildMarketingPrompt("Health & Fitness", "yoga sunrise beach");
+      const buf = await generateRapidApiImage(testPrompt);
+      return NextResponse.json({
+        success: !!buf,
+        buffer_size: buf?.length ?? 0,
+        rapidapi_host: process.env.RAPIDAPI_HOST || "(default)",
+        has_key: !!process.env.RAPIDAPI_KEY,
+      });
     }
 
     const results: { niche: string; generated: number; failed: number; skipped: number }[] = [];
